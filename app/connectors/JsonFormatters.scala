@@ -16,16 +16,10 @@
 
 package connectors
 
-import connectors.SubscriptionFieldsConnector.{ApiFieldDefinitions, FieldDefinition}
-import cats.data.{NonEmptyList => NEL}
-import play.api.libs.json._
+import connectors.SubscriptionFieldsConnector.{AllApiFieldDefinitions, ApiFieldDefinitions, FieldDefinition}
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Json.JsValueWrapper
-import cats.data.{NonEmptyList => NEL}
-import play.api.data.validation.ValidationError
 import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import play.api.libs.json.Json.JsValueWrapper
 
 //trait NonEmptyListFormatters {
 //
@@ -75,12 +69,10 @@ trait FieldDefinitionFormatters extends AccessRequirementsFormatters{
   ((JsPath \ "access").read[AccessRequirements] or Reads.pure(AccessRequirements.Default))
   )(FieldDefinition.apply _)
 
+  implicit val FieldDefinitionListReads = Json.reads[ApiFieldDefinitions]
 
-  implicit val FieldDefinitionListReads: Reads[ApiFieldDefinitions] = (
-    (JsPath \ "apiContext").read[String] and
-      (JsPath \ "apiVersion").read[String] and
-      (JsPath \ "fieldDefinitions").read[Set[ApiFieldDefinitions]]
-    )(ApiFieldDefinitions.apply _)
+  implicit val formatAllApiFieldDefinitionsResponse =
+    Json.reads[AllApiFieldDefinitions]
 }
 
 trait AccessRequirementsFormatters {

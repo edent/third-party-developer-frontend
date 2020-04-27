@@ -238,10 +238,6 @@ object SubscriptionFieldsConnector {
 //    apiVersion: String,
 //    fieldDefinitions: List[FieldDefinition]
 
-
-
-    implicit val formatAllApiFieldDefinitionsResponse: Format[AllApiFieldDefinitions] =
-      Json.format[AllApiFieldDefinitions]
   }
 }
 
