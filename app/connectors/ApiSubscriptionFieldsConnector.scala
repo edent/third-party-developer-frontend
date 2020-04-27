@@ -203,14 +203,13 @@ object SubscriptionFieldsConnector {
       fields: Map[String, String]
   )
 
-  // TODO : Do we need the default AccessRequirements?
   private[connectors] case class FieldDefinition(
       name: String,
       description: String,
       shortDescription: String,
       hint: String,
       `type`: String,
-      access : AccessRequirements = AccessRequirements.Default
+      access : AccessRequirements
   )
 
   private[connectors] case class ApiFieldDefinitions(
