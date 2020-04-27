@@ -16,9 +16,72 @@
 
 package connectors
 
+import connectors.SubscriptionFieldsConnector.{ApiFieldDefinitions, FieldDefinition}
+import cats.data.{NonEmptyList => NEL}
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Json.JsValueWrapper
+import cats.data.{NonEmptyList => NEL}
+import play.api.data.validation.ValidationError
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
+import play.api.libs.json.Json.JsValueWrapper
+
+//trait NonEmptyListFormatters {
+//
+//  implicit def nelReads[A](implicit r: Reads[A]): Reads[NEL[A]] =
+//    Reads
+//      .of[List[A]]
+//      .collect(
+//          ValidationError("expected a NonEmptyList but got an empty list")
+//      ) {
+//        case head :: tail => NEL(head, tail)
+//      }
+//
+//  implicit def nelWrites[A](implicit w: Writes[A]): Writes[NEL[A]] =
+//    Writes
+//      .of[List[A]]
+//      .contramap(_.toList)
+//}
+
+//trait SeqFormatters {
+//
+//  implicit def nelReads[A](implicit r: Reads[A]): Reads[Seq[A]] =
+//    Reads
+//      .of[Seq[A]]
+//      .collect(
+//        ValidationError("expected a NonEmptyList but got an empty list")
+//      ) {
+//        case head :: tail => Seq(head, tail)
+//      }
+//
+////  implicit def nelWrites[A](implicit w: Writes[A]): Writes[NEL[A]] =
+////    Writes
+////      .of[List[A]]
+////      .contramap(_.toList)
+//}
+
+trait FieldDefinitionFormatters extends AccessRequirementsFormatters{
+
+  implicit val FieldDefinitionReads: Reads[FieldDefinition] = (
+  (JsPath \ "name").read[String] and
+  (JsPath \ "description").read[String] and
+  ((JsPath \ "hint").read[String] or Reads.pure("")) and
+    // TODO: Use enums from api-subs-fields
+//  (JsPath \ "type").read[FieldDefinitionType] and
+  (JsPath \ "type").read[String] and
+  ((JsPath \ "shortDescription").read[String] or Reads.pure("")) and
+//  (JsPath \ "validation").readNullable[ValidationGroup] and
+  ((JsPath \ "access").read[AccessRequirements] or Reads.pure(AccessRequirements.Default))
+  )(FieldDefinition.apply _)
+
+
+  implicit val FieldDefinitionListReads: Reads[ApiFieldDefinitions] = (
+    (JsPath \ "apiContext").read[String] and
+      (JsPath \ "apiVersion").read[String] and
+      (JsPath \ "fieldDefinitions").read[Set[ApiFieldDefinitions]]
+    )(ApiFieldDefinitions.apply _)
+}
 
 trait AccessRequirementsFormatters {
   import DevhubAccessRequirement._
