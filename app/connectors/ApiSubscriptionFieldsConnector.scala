@@ -203,13 +203,14 @@ object SubscriptionFieldsConnector {
       fields: Map[String, String]
   )
 
+  // TODO : Do we need the default AccessRequirements?
   private[connectors] case class FieldDefinition(
       name: String,
       description: String,
       shortDescription: String,
       hint: String,
-      `type`: String
-//      access : AccessRequirements = AccessRequirements.Default
+      `type`: String,
+      access : AccessRequirements = AccessRequirements.Default
   )
 
   private[connectors] case class ApiFieldDefinitions(
@@ -220,7 +221,7 @@ object SubscriptionFieldsConnector {
 
   private[connectors] case class AllApiFieldDefinitions(apis: Seq[ApiFieldDefinitions])
 
-  object JsonFormatters {
+  object JsonFormatters extends AccessRequirementsFormatters {
     implicit val format: Format[ApplicationApiFieldValues] = Json.format[ApplicationApiFieldValues]
     implicit val formatFieldDefinition: Format[FieldDefinition] = Json.format[FieldDefinition]
     implicit val formatApiFieldDefinitionsResponse: Format[ApiFieldDefinitions] =
