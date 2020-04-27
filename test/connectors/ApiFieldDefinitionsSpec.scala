@@ -37,6 +37,14 @@ class ApiFieldDefinitionsSpec extends UnitSpec {
        |    ]
        |}""".stripMargin
 
+  private val basicFieldDefinition: ApiFieldDefinitions = {
+    ApiFieldDefinitions("my-context", "1.0", List(FieldDefinition("field-name",
+      "my-description",
+      "my-shortDescription",
+      "my-hint",
+      "STRING")))
+  }
+
   private def fieldDefinitionWithAccessJson =
     """{
       |    "apiContext": "my-context",
@@ -57,14 +65,6 @@ class ApiFieldDefinitionsSpec extends UnitSpec {
       |        }
       |    ]
       |}""".stripMargin
-
-  private val basicFieldDefinition: ApiFieldDefinitions = {
-    ApiFieldDefinitions("my-context", "1.0", List(FieldDefinition("field-name",
-      "my-description",
-      "my-shortDescription",
-      "my-hint",
-      "STRING")))
-  }
 
   private val fieldDefinitionWithAccess = basicFieldDefinition.copy() // TODO Need to create & add access DTOs
 

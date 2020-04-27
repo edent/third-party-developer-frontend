@@ -209,6 +209,7 @@ object SubscriptionFieldsConnector {
       shortDescription: String,
       hint: String,
       `type`: String
+//      access : AccessRequirements = AccessRequirements.Default
   )
 
   private[connectors] case class ApiFieldDefinitions(
