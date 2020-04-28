@@ -14,27 +14,25 @@
  * limitations under the License.
  */
 
-package connectors
+package domain
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import connectors.DevhubAccessLevel._
-import connectors.DevhubAccessRequirement._
+import domain.DevhubAccessLevel._
+import domain.DevhubAccessRequirement._
+import org.scalatest.{Matchers, WordSpec}
 
-// TODO: Move this to a more appropriate file location
 class AccessRequirementsSpec extends WordSpec with Matchers {
 
   "DevhubRequirement" should {
 
     "Developer" should {
       "satisfy the Anyone requirement" in {
-        Developer.satisfiesRequirement(Anyone) shouldBe true
+        DevhubAccessLevel.Developer.satisfiesRequirement(Anyone) shouldBe true
       }
       "not satisfy the AdminOnly requirement" in {
-        Developer.satisfiesRequirement(AdminOnly) shouldBe false
+        DevhubAccessLevel.Developer.satisfiesRequirement(AdminOnly) shouldBe false
       }
       "not satisfy the NoOne requirement" in {
-        Developer.satisfiesRequirement(NoOne) shouldBe false
+        DevhubAccessLevel.Developer.satisfiesRequirement(NoOne) shouldBe false
       }
     }
 
@@ -56,18 +54,18 @@ class AccessRequirementsSpec extends WordSpec with Matchers {
     "a producer team wants to restrict collaborators to only view but not change a field" in {
       val dar = DevhubAccessRequirements(read = DevhubAccessRequirement.Default, write = NoOne)
 
-      dar.satisfiesRead(Developer) shouldBe true
+      dar.satisfiesRead(DevhubAccessLevel.Developer) shouldBe true
       dar.satisfiesRead(Admininstator) shouldBe true
 
-      dar.satisfiesWrite(Developer) shouldBe false
+      dar.satisfiesWrite(DevhubAccessLevel.Developer) shouldBe false
       dar.satisfiesWrite(Admininstator) shouldBe false
     }
 
     "a producer team wants to restrict Developers from even viewing a field but allow administrators to read and write" in {
       val dar = DevhubAccessRequirements(read = AdminOnly, write = AdminOnly)
 
-      dar.satisfiesRead(Developer) shouldBe false
-      dar.satisfiesWrite(Developer) shouldBe false
+      dar.satisfiesRead(DevhubAccessLevel.Developer) shouldBe false
+      dar.satisfiesWrite(DevhubAccessLevel.Developer) shouldBe false
 
       dar.satisfiesRead(Admininstator) shouldBe true
       dar.satisfiesWrite(Admininstator) shouldBe true
@@ -76,8 +74,8 @@ class AccessRequirementsSpec extends WordSpec with Matchers {
     "a producer team wants to restrict Developers to viewing a field but allow administrators to read and write" in {
       val dar = DevhubAccessRequirements(read = Anyone, write = AdminOnly)
 
-      dar.satisfiesRead(Developer) shouldBe true
-      dar.satisfiesWrite(Developer) shouldBe false
+      dar.satisfiesRead(DevhubAccessLevel.Developer) shouldBe true
+      dar.satisfiesWrite(DevhubAccessLevel.Developer) shouldBe false
 
       dar.satisfiesRead(Admininstator) shouldBe true
       dar.satisfiesWrite(Admininstator) shouldBe true
@@ -86,8 +84,8 @@ class AccessRequirementsSpec extends WordSpec with Matchers {
     "a producer team wants to allow anyone to view and change a field" in {
       val dar = DevhubAccessRequirements(read = Anyone)
 
-      dar.satisfiesRead(Developer) shouldBe true
-      dar.satisfiesWrite(Developer) shouldBe true
+      dar.satisfiesRead(DevhubAccessLevel.Developer) shouldBe true
+      dar.satisfiesWrite(DevhubAccessLevel.Developer) shouldBe true
 
       dar.satisfiesRead(Admininstator) shouldBe true
       dar.satisfiesWrite(Admininstator) shouldBe true
@@ -97,8 +95,8 @@ class AccessRequirementsSpec extends WordSpec with Matchers {
   "Stuff" in {
     val access = AccessRequirements(devhub = DevhubAccessRequirements(NoOne, NoOne))
 
-    access.devhub.satisfiesRead(Developer) shouldBe false
-    access.devhub.satisfiesWrite(Developer) shouldBe false
+    access.devhub.satisfiesRead(DevhubAccessLevel.Developer) shouldBe false
+    access.devhub.satisfiesWrite(DevhubAccessLevel.Developer) shouldBe false
 
     access.devhub.satisfiesRead(Admininstator) shouldBe false
     access.devhub.satisfiesWrite(Admininstator) shouldBe false

@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package connectors
+package domain
 
-// TODO: Move this to a more appropriate file location
 
 sealed trait DevhubAccessRequirement
 object DevhubAccessRequirement {

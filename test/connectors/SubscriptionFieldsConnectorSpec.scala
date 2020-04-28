@@ -22,7 +22,7 @@ import akka.actor.ActorSystem
 import akka.pattern.FutureTimeoutSupport
 import config.ApplicationConfig
 import connectors.SubscriptionFieldsConnector._
-import domain.{APIIdentifier, Environment}
+import domain.{APIIdentifier, AccessRequirements, Environment}
 import domain.ApiSubscriptionFields._
 import helpers.FutureTimeoutSupportImpl
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}

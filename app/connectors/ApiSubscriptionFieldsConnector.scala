@@ -22,7 +22,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.pattern.FutureTimeoutSupport
 import config.ApplicationConfig
-import domain.{APIIdentifier, Environment}
+import domain.{APIIdentifier, AccessRequirements, Environment}
 import domain.ApiSubscriptionFields._
 import helpers.Retries
 import javax.inject.{Inject, Singleton}
@@ -223,21 +223,6 @@ object SubscriptionFieldsConnector {
 
   object JsonFormatters extends FieldDefinitionFormatters {
     implicit val format: Format[ApplicationApiFieldValues] = Json.format[ApplicationApiFieldValues]
-
-    //implicit val things : Format[Seq[FieldDefinition]] = Json.format[Seq[FieldDefinition]]
-
-//    implicit val things2: Reads[Seq[FieldDefinition]]
-
-    //implicit val formatFieldDefinition: Format[FieldDefinition] = Json.format[FieldDefinition]
-
-//    implicit val formatApiFieldDefinitionsResponse: Format[ApiFieldDefinitions] =
-//      Json.format[ApiFieldDefinitions]
-
-
-//    apiContext: String,
-//    apiVersion: String,
-//    fieldDefinitions: List[FieldDefinition]
-
   }
 }
 

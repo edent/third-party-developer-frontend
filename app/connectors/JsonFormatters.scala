@@ -17,43 +17,10 @@
 package connectors
 
 import connectors.SubscriptionFieldsConnector.{AllApiFieldDefinitions, ApiFieldDefinitions, FieldDefinition}
+import domain.{AccessRequirements, DevhubAccessRequirement, DevhubAccessRequirements}
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
-
-//trait NonEmptyListFormatters {
-//
-//  implicit def nelReads[A](implicit r: Reads[A]): Reads[NEL[A]] =
-//    Reads
-//      .of[List[A]]
-//      .collect(
-//          ValidationError("expected a NonEmptyList but got an empty list")
-//      ) {
-//        case head :: tail => NEL(head, tail)
-//      }
-//
-//  implicit def nelWrites[A](implicit w: Writes[A]): Writes[NEL[A]] =
-//    Writes
-//      .of[List[A]]
-//      .contramap(_.toList)
-//}
-
-//trait SeqFormatters {
-//
-//  implicit def nelReads[A](implicit r: Reads[A]): Reads[Seq[A]] =
-//    Reads
-//      .of[Seq[A]]
-//      .collect(
-//        ValidationError("expected a NonEmptyList but got an empty list")
-//      ) {
-//        case head :: tail => Seq(head, tail)
-//      }
-//
-////  implicit def nelWrites[A](implicit w: Writes[A]): Writes[NEL[A]] =
-////    Writes
-////      .of[List[A]]
-////      .contramap(_.toList)
-//}
 
 trait FieldDefinitionFormatters extends AccessRequirementsFormatters{
 
@@ -65,7 +32,6 @@ trait FieldDefinitionFormatters extends AccessRequirementsFormatters{
   // TODO: Use enums from api-subs-fields
   //  (JsPath \ "type").read[FieldDefinitionType] and
   (JsPath \ "type").read[String] and
-//  (JsPath \ "validation").readNullable[ValidationGroup] and
   ((JsPath \ "access").read[AccessRequirements] or Reads.pure(AccessRequirements.Default))
   )(FieldDefinition.apply _)
 
