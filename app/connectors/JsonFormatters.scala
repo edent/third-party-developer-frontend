@@ -60,11 +60,11 @@ trait FieldDefinitionFormatters extends AccessRequirementsFormatters{
   implicit val FieldDefinitionReads: Reads[FieldDefinition] = (
   (JsPath \ "name").read[String] and
   (JsPath \ "description").read[String] and
-  ((JsPath \ "hint").read[String] or Reads.pure("")) and
-    // TODO: Use enums from api-subs-fields
-//  (JsPath \ "type").read[FieldDefinitionType] and
-  (JsPath \ "type").read[String] and
   ((JsPath \ "shortDescription").read[String] or Reads.pure("")) and
+  ((JsPath \ "hint").read[String] or Reads.pure("")) and
+  // TODO: Use enums from api-subs-fields
+  //  (JsPath \ "type").read[FieldDefinitionType] and
+  (JsPath \ "type").read[String] and
 //  (JsPath \ "validation").readNullable[ValidationGroup] and
   ((JsPath \ "access").read[AccessRequirements] or Reads.pure(AccessRequirements.Default))
   )(FieldDefinition.apply _)

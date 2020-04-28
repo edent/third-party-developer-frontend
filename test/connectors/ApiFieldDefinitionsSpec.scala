@@ -31,9 +31,9 @@ class ApiFieldDefinitionsSpec extends UnitSpec {
        |        {
        |            "name": "field-name",
        |            "description": "my-description",
+       |            "shortDescription": "my-shortDescription",
        |            "hint": "my-hint",
        |            "type": "STRING",
-       |            "shortDescription": "my-shortDescription",
        |            "access": {}
        |        }
        |    ]
@@ -55,9 +55,9 @@ class ApiFieldDefinitionsSpec extends UnitSpec {
       |        {
       |            "name": "field-name",
       |            "description": "my-description",
+      |            "shortDescription": "my-shortDescription",
       |            "hint": "my-hint",
       |            "type": "STRING",
-      |            "shortDescription": "my-shortDescription",
       |            "access": {
       |                "devhub": {
       |                    "read": "noOne",
@@ -77,11 +77,11 @@ class ApiFieldDefinitionsSpec extends UnitSpec {
     // TODO: Need to make this red.
     "for field definition with access" in {
       val apiFieldDefinitionsWithAccess: ApiFieldDefinitions = {
-        ApiFieldDefinitions("my-context", "1.0", List(FieldDefinition("field-name",
-          "my-description",
-          "my-shortDescription",
-          "my-hint",
-          "STRING",
+        ApiFieldDefinitions("my-context", "1.0", List(FieldDefinition(name = "field-name",
+          description = "my-description",
+          shortDescription = "my-shortDescription",
+          hint = "my-hint",
+          `type` = "STRING",
           access = AccessRequirements(devhub = DevhubAccessRequirements(NoOne, NoOne)))))
       }
 
