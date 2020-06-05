@@ -79,6 +79,7 @@ object ManageSubscriptions {
     )
   }
 
+  // TODO: Rename to something a bit 'formey'
   case class EditApiMetadataViewModel(fieldsForm: Form[EditApiMetadata])
 
   def toViewModel(in: APISubscriptionStatusWithSubscriptionFields): EditApiMetadataViewModel = {
@@ -143,7 +144,7 @@ class ManageSubscriptions @Inject() (
         .filter(s => s.context.equalsIgnoreCase(context) && s.apiVersion.version.equalsIgnoreCase(version))
         .headOption
         .map( (vm : APISubscriptionStatusWithSubscriptionFields) => {
-          successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, vm.fields, toViewModel(vm), mode)))
+          successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, vm, toViewModel(vm), mode)))
         })
         .getOrElse(successful(NotFound(errorHandler.notFoundTemplate)))
     }
@@ -163,12 +164,14 @@ class ManageSubscriptions @Inject() (
       case CheckYourAnswers => checkpages.routes.CheckYourAnswers.answersPage(applicationId).withFragment("configurations")
     }
 
+    // TODO: Make this a refiner?
+    // TODO: name
     val x : APISubscriptionStatusWithSubscriptionFields = definitionsRequest.fieldDefinitions
       .filter(s => s.context.equalsIgnoreCase(apiContext) && s.apiVersion.version.equalsIgnoreCase(apiVersion))
       .headOption.get // TODO: Naked get / empty list
       
-    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, vm =>
-      editApiMetadata(definitionsRequest.applicationRequest.application,x.fields, vm, mode)
+    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, (vm : EditApiMetadataViewModel)=>
+      editApiMetadata(definitionsRequest.applicationRequest.application,x, vm, mode)
     )
   }
 
@@ -234,12 +237,12 @@ class ManageSubscriptions @Inject() (
 
       implicit val appRQ: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
 
-      val fields = definitionsRequest.apiSubscriptionStatus.fields
+      val apiSubscription = definitionsRequest.apiSubscriptionStatus
 
       Future.successful(Ok(views.html.createJourney.subscriptionConfigurationPage(
         definitionsRequest.applicationRequest.application,
         pageNumber,
-        fields,
+        apiSubscription,
         toViewModel(definitionsRequest.apiSubscriptionStatus))
       ))
     }
@@ -251,14 +254,14 @@ class ManageSubscriptions @Inject() (
 
       val successRedirectUrl = routes.ManageSubscriptions.subscriptionConfigurationStepPage(applicationId,  pageNumber)
 
-      val fields = definitionsRequest.apiSubscriptionStatus.fields
+      val apiSubscription = definitionsRequest.apiSubscriptionStatus
 
       subscriptionConfigurationSave(
         definitionsRequest.apiDetails.context,
         definitionsRequest.apiDetails.version,
         successRedirectUrl,
         viewModel => {
-          views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, fields, viewModel)
+          views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, apiSubscription, viewModel)
         })
     }
 

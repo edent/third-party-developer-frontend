@@ -21,17 +21,17 @@
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 
 @(
-        app: Application,
-        pageNumber: Int,
-        subscriptionFields : SubscriptionFieldsWrapper,
-        vm: EditApiMetadataViewModel
+  app: Application,
+  pageNumber: Int,
+  apiSubscription : APISubscriptionStatusWithSubscriptionFields,
+  vm: EditApiMetadataViewModel
 )(
-        implicit request: play.api.mvc.Request[Any],
-        loggedIn: DeveloperSession,
-        messages: Messages,
-        applicationConfig: config.ApplicationConfig)
+  implicit request: play.api.mvc.Request[Any],
+  loggedIn: DeveloperSession,
+  messages: Messages,
+  applicationConfig: config.ApplicationConfig)
 
-@pageHeading = @{ "TODO - name + version + version status" }
+@pageHeading = @{ s"${apiSubscription.name} ${apiSubscription.apiVersion.version} ${apiSubscription.apiVersion.displayedStatus}" }
 
 @devMain(
   title = pageHeading,
@@ -46,7 +46,7 @@
   </header>
 
   @editApiMetadataPartial(app,
-    subscriptionFields,
+    apiSubscription,
     vm,
     routes.ManageSubscriptions.subscriptionConfigurationPagePost(app.id, pageNumber),
     Some(routes.ManageSubscriptions.subscriptionConfigurationStepPage(app.id, pageNumber))

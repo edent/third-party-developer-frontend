@@ -18,13 +18,13 @@
 @import controllers.ErrorFormBuilder._
 
 @import controllers.ManageSubscriptions.EditApiMetadataViewModel
-@import domain.Application
+@import domain.{Application, APISubscriptionStatusWithSubscriptionFields}
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 @import views.html.include.fieldError
 @import views.helper.IdFormatter
 @(
   app: Application,
-  subscriptionFields : SubscriptionFieldsWrapper,
+  apiSubscription : APISubscriptionStatusWithSubscriptionFields,
   vm: EditApiMetadataViewModel,
   formPostUrl: Call,
   skipLink : Option[Call] = None
@@ -40,7 +40,7 @@
 
  @helper.repeatWithIndex(vm.fieldsForm("fields")) { (field, idx) =>
   @defining(field("name").value.getOrElse("")) { formFieldId =>
-    @defining(subscriptionFields.fields.toList(idx)) { subscriptionField => 
+    @defining(apiSubscription.fields.fields.toList(idx)) { subscriptionField => 
         <div class="form-group @if(vm.fieldsForm.errors(formFieldId).nonEmpty){form-group-error}">
 
           @fieldError(vm.fieldsForm.errors, formFieldId)
@@ -64,7 +64,7 @@
   }
 
  <div class="form-group">
-  <button id="@{IdFormatter.identifier(subscriptionFields.apiContext, subscriptionFields.apiVersion)}-submit" class="button submit-button" type="submit">Save changes</button>
+  <button id="@{IdFormatter.identifier(apiSubscription.fields.apiContext, apiSubscription.fields.apiVersion)}-submit" class="button submit-button" type="submit">Save changes</button>
 
   @if(skipLink.isDefined){
    <a href="@{skipLink.get}" class="secondary-button">I'll do this later</a>

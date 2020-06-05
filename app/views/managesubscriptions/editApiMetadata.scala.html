@@ -24,7 +24,7 @@
 
 @(
   app: Application,
-  subscriptionFields : SubscriptionFieldsWrapper,
+  apiSubscription: APISubscriptionStatusWithSubscriptionFields,
   vm: EditApiMetadataViewModel,
   mode: SaveSubsFieldsPageMode
 )(
@@ -34,7 +34,7 @@
     applicationConfig: config.ApplicationConfig
 )
 
-@pageHeading = @{ "TODO - name + version + version status" }
+@pageHeading = @{ s"${apiSubscription.name} ${apiSubscription.apiVersion.version} ${apiSubscription.apiVersion.displayedStatus}" }
 
 @devMain(
     title = pageHeading,
@@ -58,8 +58,8 @@
 
     @editApiMetadataPartial(
       app,
-      subscriptionFields,
+      apiSubscription,
       vm,
-      routes.ManageSubscriptions.saveSubscriptionFields(app.id, subscriptionFields.apiContext, subscriptionFields.apiVersion, mode)
+      routes.ManageSubscriptions.saveSubscriptionFields(app.id, apiSubscription.fields.apiContext, apiSubscription.fields.apiVersion, mode)
     )
 }
