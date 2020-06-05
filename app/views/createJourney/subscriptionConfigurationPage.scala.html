@@ -18,10 +18,12 @@
 @import domain._
 
 @import controllers.ManageSubscriptions.EditApiMetadataViewModel
+@import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 
 @(
         app: Application,
         pageNumber: Int,
+        subscriptionFields : SubscriptionFieldsWrapper,
         vm: EditApiMetadataViewModel
 )(
         implicit request: play.api.mvc.Request[Any],
@@ -46,6 +48,7 @@
   </header>
 
   @editApiMetadataPartial(app,
+    subscriptionFields,
     vm,
     routes.ManageSubscriptions.subscriptionConfigurationPagePost(app.id, pageNumber),
     Some(routes.ManageSubscriptions.subscriptionConfigurationStepPage(app.id, pageNumber))

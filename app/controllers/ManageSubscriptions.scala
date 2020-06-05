@@ -137,18 +137,24 @@ class ManageSubscriptions @Inject() (
       implicit val rq: Request[AnyContent] = definitionsRequest.applicationRequest.request
       implicit val appRQ: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
 
+      // TODO: Can we do this in refiner?
       definitionsRequest.fieldDefinitions
         .filter(s => s.context.equalsIgnoreCase(context) && s.apiVersion.version.equalsIgnoreCase(version))
         .headOption
-        .map(vm => successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, toViewModel(vm), mode))))
+        .map( (vm : APISubscriptionStatusWithSubscriptionFields) => {
+          successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, vm.fields, toViewModel(vm), mode)))
+        })
         .getOrElse(successful(NotFound(errorHandler.notFoundTemplate)))
     }
 
   def saveSubscriptionFields(applicationId: String,
                              apiContext: String,
                              apiVersion: String,
-                             mode: SaveSubsFieldsPageMode
-                            ) : Action[AnyContent] = whenTeamMemberOnApp(applicationId) { implicit request: ApplicationRequest[AnyContent] =>
+                             mode: SaveSubsFieldsPageMode) : Action[AnyContent] = 
+      subFieldsDefinitionsExistAction(applicationId) { definitionsRequest: ApplicationWithFieldDefinitionsRequest[AnyContent] =>
+ 
+    implicit val rq: Request[AnyContent] = definitionsRequest.applicationRequest.request
+    implicit val appRQ: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
 
     import SaveSubsFieldsPageMode._
     val successRedirectUrl = mode match {
@@ -156,8 +162,12 @@ class ManageSubscriptions @Inject() (
       case CheckYourAnswers => checkpages.routes.CheckYourAnswers.answersPage(applicationId).withFragment("configurations")
     }
 
+    val x : APISubscriptionStatusWithSubscriptionFields = definitionsRequest.fieldDefinitions
+      .filter(s => s.context.equalsIgnoreCase(apiContext) && s.apiVersion.version.equalsIgnoreCase(apiVersion))
+      .headOption.get // TODO: Naked get / empty list
+      
     subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, vm =>
-      editApiMetadata(request.application,vm, mode)
+      editApiMetadata(definitionsRequest.applicationRequest.application,x.fields, vm, mode)
     )
   }
 
@@ -223,9 +233,12 @@ class ManageSubscriptions @Inject() (
 
       implicit val appRQ: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
 
+      val fields = definitionsRequest.apiSubscriptionStatus.fields
+
       Future.successful(Ok(views.html.createJourney.subscriptionConfigurationPage(
         definitionsRequest.applicationRequest.application,
         pageNumber,
+        fields,
         toViewModel(definitionsRequest.apiSubscriptionStatus))
       ))
     }
@@ -237,9 +250,15 @@ class ManageSubscriptions @Inject() (
 
       val successRedirectUrl = routes.ManageSubscriptions.subscriptionConfigurationStepPage(applicationId,  pageNumber)
 
-      subscriptionConfigurationSave(definitionsRequest.apiDetails.context, definitionsRequest.apiDetails.version, successRedirectUrl, viewModel => {
-        views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, viewModel)
-      })
+      val fields = definitionsRequest.apiSubscriptionStatus.fields
+
+      subscriptionConfigurationSave(
+        definitionsRequest.apiDetails.context,
+        definitionsRequest.apiDetails.version,
+        successRedirectUrl,
+        viewModel => {
+          views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, fields, viewModel)
+        })
     }
 
   def subscriptionConfigurationStepPage(applicationId: String, pageNumber: Int): Action[AnyContent] = {

@@ -19,10 +19,12 @@
 
 @import controllers.ManageSubscriptions.EditApiMetadataViewModel
 @import domain.Application
+@import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 @import views.html.include.fieldError
 @import views.helper.IdFormatter
 @(
         app: Application,
+        subscriptionFields : SubscriptionFieldsWrapper,
         vm: EditApiMetadataViewModel,
         formPostUrl: Call,
         skipLink : Option[Call] = None

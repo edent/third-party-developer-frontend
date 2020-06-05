@@ -18,11 +18,13 @@
 @import domain._
 @import model.Crumb
 @import controllers.ManageSubscriptions.EditApiMetadataViewModel
+@import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 
 @import views.helper.IdFormatter
 
 @(
   app: Application,
+  subscriptionFields : SubscriptionFieldsWrapper,
   vm: EditApiMetadataViewModel,
   mode: SaveSubsFieldsPageMode
 )(
@@ -56,6 +58,7 @@
 
     @editApiMetadataPartial(
       app,
+      subscriptionFields,
       vm,
       routes.ManageSubscriptions.saveSubscriptionFields(app.id, vm.apiContext, vm.apiVersion, mode)
     )
