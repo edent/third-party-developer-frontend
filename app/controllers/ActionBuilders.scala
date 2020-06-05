@@ -108,6 +108,29 @@ trait ActionBuilders {
     }
   }
 
+  def subscriptionFieldsRefiner(context: String, version: String)(implicit ec: ExecutionContext):
+    ActionRefiner[ApplicationWithFieldDefinitionsRequest, ApplicationWithSubscriptionFields]
+      = new ActionRefiner[ApplicationWithFieldDefinitionsRequest, ApplicationWithSubscriptionFields] {
+
+    def refine[A](input: ApplicationWithFieldDefinitionsRequest[A]): Future[Either[Result, ApplicationWithSubscriptionFields[A]]] = {
+      implicit val implicitRequest: Request[A] = input.applicationRequest.request
+
+      Future.successful({
+        val apiSubscription = input.fieldDefinitions.find(d => {d.context == context && d.apiVersion.version == version})
+
+        apiSubscription match {
+          case apiSubscription if apiSubscription.isEmpty => Left(NotFound(errorHandler.notFoundTemplate))
+          case apiSubscription if apiSubscription.size == 1 => {
+            val apiDetails = apiSubscription.head
+
+            Right(ApplicationWithSubscriptionFields(apiDetails, input.applicationRequest))}
+          
+          case _ => throw new RuntimeException("Bang!") // TODO : Better error. Too many matches?
+        }
+      })
+    }
+  }
+
   private def forbiddenWhenNot[A](cond: Boolean)(implicit applicationRequest: ApplicationRequest[A]): Option[Result] = {
     if (cond) {
       None
