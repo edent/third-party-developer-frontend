@@ -17,7 +17,7 @@
 @import views.helper.GlobalSection._
 @import controllers.ErrorFormBuilder._
 
-@import controllers.ManageSubscriptions.EditApiMetadata
+@import controllers.ManageSubscriptions.EditApiConfigurationFormData
 @import domain.{Application, APISubscriptionStatusWithSubscriptionFields}
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 @import views.html.include.fieldError
@@ -25,7 +25,7 @@
 @(
   app: Application,
   apiSubscription : APISubscriptionStatusWithSubscriptionFields,
-  form: Form[EditApiMetadata],
+  form: Form[EditApiConfigurationFormData],
   formPostUrl: Call,
   skipLink : Option[Call] = None
 )(

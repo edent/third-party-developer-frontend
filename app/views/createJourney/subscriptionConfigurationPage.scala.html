@@ -17,14 +17,14 @@
 @import include._
 @import domain._
 
-@import controllers.ManageSubscriptions.EditApiMetadata
+@import controllers.ManageSubscriptions.EditApiConfigurationFormData
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 
 @(
   app: Application,
   pageNumber: Int,
   apiSubscription : APISubscriptionStatusWithSubscriptionFields,
-  form: Form[EditApiMetadata]
+  form: Form[EditApiConfigurationFormData]
 )(
   implicit request: play.api.mvc.Request[Any],
   loggedIn: DeveloperSession,

@@ -17,7 +17,7 @@
 @import include._
 @import domain._
 @import model.Crumb
-@import controllers.ManageSubscriptions.EditApiMetadata
+@import controllers.ManageSubscriptions.EditApiConfigurationFormData
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 
 @import views.helper.IdFormatter
@@ -25,7 +25,7 @@
 @(
   app: Application,
   apiSubscription: APISubscriptionStatusWithSubscriptionFields,
-  form: Form[EditApiMetadata],
+  form: Form[EditApiConfigurationFormData],
   mode: SaveSubsFieldsPageMode
 )(
     implicit request: play.api.mvc.Request[Any],
