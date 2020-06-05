@@ -60,47 +60,48 @@ object ManageSubscriptions {
   }
 
   def toForm(in: APISubscriptionStatusWithSubscriptionFields): EditApiMetadata = {
-    EditApiMetadata(in.name,in.apiVersion.displayedStatus, fields = in.fields.fields.toList)
+    EditApiMetadata(fields = in.fields.fields.toList.map(field => EditSubscriptionValueFormData(field.definition.name, field.value)))
   }
 
-  // TODO: Change this to ones below
-  case class EditApiMetadata(apiName: String, displayedStatus: String, fields: List[SubscriptionFieldValue])
-  
-  // TODO: Replace above with these
-  // case class EditSubscriptionValueFormData(name: String, value: String)
-  // case class EditApiMetadata(apiName: String, displayedStatus: String, fields: List[EditSubscriptionValueFormData])
+  case class EditSubscriptionValueFormData(name: String, value: String)
+  case class EditApiMetadata(fields: List[EditSubscriptionValueFormData])
 
-  // TODO: Remove unnessisary extra hidden fields, and don't bind to SubscriptionFieldValue / SubscriptionFieldDefinition
   object EditApiMetadata {
     val form: Form[EditApiMetadata] = Form(
       mapping(
-        "apiName" -> text,
-        "displayedStatus" -> text,
         "fields" -> list(
           mapping(
             "name" -> text,
-            "description" -> text,
-            "shortDescription" -> text,
-            "hint" -> text,
-            "type" -> text,
             "value" -> text
-          )(SubscriptionFieldValue.fromFormValues)(SubscriptionFieldValue.toFormValues)
+          )(fromFormValues)(toFormValues)
         )
       )(EditApiMetadata.apply)(EditApiMetadata.unapply)
     )
   }
 
-  case class EditApiMetadataViewModel(
-                                       name: String,
-                                       apiContext: String,
-                                       apiVersion: String,
-                                       displayedStatus: String,
-                                       fieldsForm: Form[EditApiMetadata]
-                                     )
+  case class EditApiMetadataViewModel(fieldsForm: Form[EditApiMetadata])
 
   def toViewModel(in: APISubscriptionStatusWithSubscriptionFields): EditApiMetadataViewModel = {
     val data = toForm(in)
-    EditApiMetadataViewModel(in.name, in.context, in.apiVersion.version, in.apiVersion.displayedStatus, EditApiMetadata.form.fill(data))
+    EditApiMetadataViewModel(EditApiMetadata.form.fill(data))
+  }
+
+  def fromFormValues(
+      name: String,
+      value: String
+  ) = {
+      EditSubscriptionValueFormData(name, value)
+  }
+
+  def toFormValues(
+      editSubscriptionValueFormData: EditSubscriptionValueFormData
+  ): Option[(String, String)] = {
+    Some(
+      (
+        editSubscriptionValueFormData.name,
+        editSubscriptionValueFormData.value
+      )
+    )
   }
 }
 
@@ -182,7 +183,7 @@ class ManageSubscriptions @Inject() (
         if (validForm.fields.nonEmpty) {
 
           // TODO: Lookup field definitions
-          subFieldsService.saveFieldValues(request.application, apiContext, apiVersion, Map(validForm.fields.map(f => f.definition.name -> f.value): _*))
+          subFieldsService.saveFieldValues(request.application, apiContext, apiVersion, Map(validForm.fields.map(f => f.name -> f.value): _*))
         } else {
           Future.successful(SaveSubscriptionFieldsSuccessResponse)
         }
@@ -193,7 +194,7 @@ class ManageSubscriptions @Inject() (
         case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>
           val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
           val errorForm = EditApiMetadata.form.fill(validForm).copy(errors = errors)
-          val vm = EditApiMetadataViewModel(validForm.apiName, apiContext, apiVersion, validForm.displayedStatus, errorForm)
+          val vm = EditApiMetadataViewModel(errorForm)
 
           BadRequest(validationFailureView(vm))
       }
@@ -202,7 +203,7 @@ class ManageSubscriptions @Inject() (
     def handleInvalidForm(formWithErrors: Form[EditApiMetadata]) = {
       val displayedStatus = formWithErrors.data.getOrElse("displayedStatus", throw new Exception("Missing form field: displayedStatus"))
 
-      val vm = EditApiMetadataViewModel(request.application.id, apiContext, apiVersion, displayedStatus, formWithErrors)
+      val vm = EditApiMetadataViewModel(formWithErrors)
       Future.successful(BadRequest(validationFailureView(vm)))
     }
 
