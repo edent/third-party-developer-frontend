@@ -17,14 +17,14 @@
 @import include._
 @import domain._
 
-@import controllers.ManageSubscriptions.EditApiMetadataViewModel
+@import controllers.ManageSubscriptions.EditApiMetadata
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 
 @(
   app: Application,
   pageNumber: Int,
   apiSubscription : APISubscriptionStatusWithSubscriptionFields,
-  vm: EditApiMetadataViewModel
+  form: Form[EditApiMetadata]
 )(
   implicit request: play.api.mvc.Request[Any],
   loggedIn: DeveloperSession,
@@ -39,7 +39,7 @@
   developerSession = Some(loggedIn),
   back = BackButtonWithJavaScript
 ) {
-  @errorSummary(vm.fieldsForm)
+  @errorSummary(form)
 
   <header>
     <h2 class="heading-large">@pageHeading</h2>
@@ -47,7 +47,7 @@
 
   @editApiMetadataPartial(app,
     apiSubscription,
-    vm,
+    form,
     routes.ManageSubscriptions.subscriptionConfigurationPagePost(app.id, pageNumber),
     Some(routes.ManageSubscriptions.subscriptionConfigurationStepPage(app.id, pageNumber))
   )

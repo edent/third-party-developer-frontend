@@ -63,7 +63,7 @@ object ManageSubscriptions {
     EditApiMetadata(fields = in.fields.fields.toList.map(field => EditSubscriptionValueFormData(field.definition.name, field.value)))
   }
 
-  case class EditSubscriptionValueFormData(name: String, value: String)
+  case class EditSubscriptionValueFormData(name: String, value: String)  
   case class EditApiMetadata(fields: List[EditSubscriptionValueFormData])
 
   object EditApiMetadata {
@@ -79,12 +79,9 @@ object ManageSubscriptions {
     )
   }
 
-  // TODO: Rename to something a bit 'formey'
-  case class EditApiMetadataViewModel(fieldsForm: Form[EditApiMetadata])
-
-  def toViewModel(in: APISubscriptionStatusWithSubscriptionFields): EditApiMetadataViewModel = {
+  def toViewModel(in: APISubscriptionStatusWithSubscriptionFields): Form[EditApiMetadata] = {
     val data = toForm(in)
-    EditApiMetadataViewModel(EditApiMetadata.form.fill(data))
+    EditApiMetadata.form.fill(data)
   }
 
   def fromFormValues(
@@ -170,7 +167,7 @@ class ManageSubscriptions @Inject() (
       .filter(s => s.context.equalsIgnoreCase(apiContext) && s.apiVersion.version.equalsIgnoreCase(apiVersion))
       .headOption.get // TODO: Naked get / empty list
       
-    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, (vm : EditApiMetadataViewModel)=>
+    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, (vm : Form[EditApiMetadata])=>
       editApiMetadata(definitionsRequest.applicationRequest.application,x, vm, mode)
     )
   }
@@ -178,7 +175,7 @@ class ManageSubscriptions @Inject() (
   private def subscriptionConfigurationSave(apiContext: String,
                                             apiVersion: String,
                                             successRedirect: Call,
-                                            validationFailureView : EditApiMetadataViewModel => Html)
+                                            validationFailureView : Form[EditApiMetadata] => Html)
                                            (implicit hc: HeaderCarrier, request: ApplicationRequest[_]): Future[Result] = {
 
     def handleValidForm(validForm: EditApiMetadata) = {
@@ -196,18 +193,16 @@ class ManageSubscriptions @Inject() (
         case SaveSubscriptionFieldsSuccessResponse => Redirect(successRedirect)
         case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>
           val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
-          val errorForm = EditApiMetadata.form.fill(validForm).copy(errors = errors)
-          val vm = EditApiMetadataViewModel(errorForm)
-
+          val vm = EditApiMetadata.form.fill(validForm).copy(errors = errors)
+          
           BadRequest(validationFailureView(vm))
       }
     }
 
     def handleInvalidForm(formWithErrors: Form[EditApiMetadata]) = {
       val displayedStatus = formWithErrors.data.getOrElse("displayedStatus", throw new Exception("Missing form field: displayedStatus"))
-
-      val vm = EditApiMetadataViewModel(formWithErrors)
-      Future.successful(BadRequest(validationFailureView(vm)))
+    
+      Future.successful(BadRequest(validationFailureView(formWithErrors)))
     }
 
     EditApiMetadata.form.bindFromRequest.fold(handleInvalidForm, handleValidForm)
