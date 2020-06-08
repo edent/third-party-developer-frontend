@@ -23,7 +23,7 @@ import config.ApplicationConfig
 import service.SessionService
 import config.ErrorHandler
 import play.api.http.Status.{OK, NOT_FOUND}
-// import uk.gov.hmrc.play.test.status
+import play.api.mvc._
 import play.api.test.Helpers._
 import play.api.test.FakeRequest
 import service.ApplicationService
@@ -37,61 +37,126 @@ import play.api.mvc.Request
 import play.api.libs.crypto.CookieSigner
 import play.api.i18n.MessagesApi
 import scala.concurrent.ExecutionContext
+import play.api.mvc.AnyContentAsEmpty
+import utils.WithLoggedInSession
+import domain.Developer
+import domain.Session
+import domain.LoggedInState
+import utils.WithLoggedInSession._
+import play.filters.csrf.CSRF.TokenProvider
+import mocks.service.SessionServiceMock
+import mocks.service.ApplicationServiceMock
+import cats.data.NonEmptyList
+import scala.concurrent.Future
 
-class ActionBuildersSpec extends UnitSpec with MockitoSugar with WithFakeApplication{
+class TestController( val cookieSigner: CookieSigner,
+                      val messagesApi: MessagesApi,
+                      val sessionService: SessionService,
+                      val errorHandler: ErrorHandler,
+                      val applicationService: ApplicationService)
+                      (implicit val ec: ExecutionContext, val appConfig: ApplicationConfig) extends ApplicationController {
+}
+
+class ActionBuildersSpec extends BaseControllerSpec
+  with UnitSpec 
+  with MockitoSugar 
+  with WithFakeApplication 
+  with SessionServiceMock 
+  with ApplicationServiceMock
+  with builder.ApplicationBuilder
+  with builder.SubscriptionsBuilder {
   trait Setup {
     
     implicit var playApplication = fakeApplication
     
-    val underTest = new ApplicationController {
-      val errorHandler: ErrorHandler = fakeApplication.injector.instanceOf[ErrorHandler]
-      val applicationService: ApplicationService = mock[ApplicationService]
-      val appConfig: ApplicationConfig = mock[ApplicationConfig]
-      val cookieSigner: CookieSigner = fakeApplication.injector.instanceOf[CookieSigner]
-      lazy val messagesApi = fakeApplication.injector.instanceOf[MessagesApi]
-      implicit val ec: ExecutionContext = fakeApplication.injector.instanceOf[ExecutionContext]
-      val sessionService: SessionService =  mock[SessionService]
+    val errorHandler: ErrorHandler = fakeApplication.injector.instanceOf[ErrorHandler]
+    implicit val appConfig: ApplicationConfig = mock[ApplicationConfig]
+    implicit val cookieSigner: CookieSigner = fakeApplication.injector.instanceOf[CookieSigner]
+    lazy val messagesApi = fakeApplication.injector.instanceOf[MessagesApi]
+    implicit val ec: ExecutionContext = fakeApplication.injector.instanceOf[ExecutionContext]
+    
+    /////////////
+    // TODO - Move this to a request train (two - logged in & not logged in?)
+    val developer = Developer("thirdpartydeveloper@example.com", "John", "Doe")
+    val sessionId = "sessionId"
+    val session = Session(sessionId, developer, LoggedInState.LOGGED_IN)
 
-      def stuff(applicationId: String, apiContext: String, apiVersion: String) : Action[AnyContent] = {
-        subFieldsDefinitionsExistActionByApi(applicationId, apiContext, apiVersion) { definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
-          ???
-        }
-      }
-    }  
+    fetchSessionByIdReturns(sessionId, session)
+
+    private val sessionParams = Seq(
+      "csrfToken" -> fakeApplication.injector.instanceOf[TokenProvider].generateToken
+    )
+    /////////////
+
+    val underTest = new TestController(cookieSigner, messagesApi, sessionServiceMock, errorHandler, applicationServiceMock) {
+
+      // def stuff(applicationId: String, apiContext: String, apiVersion: String) : Action[AnyContent] = {
+      //   subFieldsDefinitionsExistActionByApi(applicationId, apiContext, apiVersion) { definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
+      //     ???
+      //   }
+      // }
+    }
+
+    // TODO: This requires a DevHubAuthorization (which underTest is), so need to be after that's contruction.
+    val loggedInRequest: FakeRequest[AnyContentAsEmpty.type] = FakeRequest()
+      .withLoggedIn(underTest, implicitly)(sessionId)
+      .withSession(sessionParams: _*)
   }
   
   "subscriptionFieldsRefiner" should {
+
     "Not found" in new Setup {
-      
-      //val loggedInRequest: FakeRequest = ???
+      // val application = buildApplication(developer.email)
+      // val subscription = buildAPISubscriptionStatus("cheese")
 
-      val request: Request[AnyContent] = ???
-      
-      val result: Result = await(underTest.stuff("appId", "context", "verion")(request))
+      // fetchByApplicationIdReturns(application)
+  
+      // givenApplicationHasSubs(application, Seq(subscription))
 
-      status(result) shouldBe NOT_FOUND
+      // val result = await(underTest.subFieldsDefinitionsExistActionByApi(application.id, "context", "version"){ 
+      //   definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
+      //   //  Future.successful(Ok(""))
+      //     throw new NotImplementedError("Bang!")
+      //   }(loggedInRequest))
+      // //val result: Result = await(underTest.stuff("appId", "context", "verion")(request))
+
+      // status(result) shouldBe NOT_FOUND
     }
 
-    "Not found2" in new Setup {
-      
-      //val loggedInRequest: FakeRequest = ???
+    "Fond one" in new Setup {
 
-      val request: Request[AnyContent] = ???
+      // @App refiner
+      // invalid app
+      // Not a collaborator
+
+      // @Some other refiner
+      // No subs at all
+      // subs but not subscribed
+
+      // @The refiner we want to test
+      // Wrong context / version
+      // subscription with no fields 
       
-      val result = await(underTest.subFieldsDefinitionsExistActionByApi("appId", "context", "version"){ 
+      val application = buildApplication(developer.email)
+      val subscription = buildAPISubscriptionStatus(
+        "api name", 
+        fields = Some(buildSubscriptionFieldsWrapper(application,NonEmptyList.one(buildSubscriptionFieldValue("field1")))))
+
+      fetchByApplicationIdReturns(application)
+  
+      givenApplicationHasSubs(application, Seq(subscription))
+
+      val testResultBody = "was called"
+
+      val result = await(underTest.subFieldsDefinitionsExistActionByApi(application.id, subscription.context, subscription.apiVersion.version){ 
         definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
-        //  Future.successful(Ok(""))
-          ???
-        }(request))
-      //val result: Result = await(underTest.stuff("appId", "context", "verion")(request))
+           Future.successful(underTest.Ok(testResultBody))
+        }(loggedInRequest))
 
-      status(result) shouldBe NOT_FOUND
+      status(result) shouldBe OK
+      bodyOf(result) shouldBe testResultBody
     }
-    
 
-    "Fond one" in {
-
-    }
     "More than one errors" in {
 
     }

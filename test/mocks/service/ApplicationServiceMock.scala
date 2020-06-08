@@ -29,10 +29,13 @@ import java.util.UUID.randomUUID
 import scala.concurrent.Future.{failed, successful}
 
 trait ApplicationServiceMock extends MockitoSugar {
-  val applicationServiceMock = mock[ApplicationService]
+  val applicationServiceMock = mock[ApplicationService](org.mockito.Mockito.withSettings().verboseLogging())
 
-  def fetchByApplicationIdReturns(id: String, returns: Application) =
+  def fetchByApplicationIdReturns(id: String, returns: Application) : Unit =
     when(applicationServiceMock.fetchByApplicationId(eqTo(id))(any())).thenReturn(successful(Some(returns)))
+
+  def fetchByApplicationIdReturns(application: Application) : Unit =
+    fetchByApplicationIdReturns(application.id, application)
 
   def fetchByApplicationIdReturnsNone(id: String) =
     when(applicationServiceMock.fetchByApplicationId(eqTo(id))(any())).thenReturn(successful(None))

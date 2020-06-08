@@ -71,11 +71,17 @@ trait ActionBuilders {
         case NoSubscriptionFieldsRefinerBehaviour.Redirect(url) => play.api.mvc.Results.Redirect(url)
       }
 
+      // TODO
+      println(s"*****1 ${input.subscriptions}")
+
       val apiSubscriptionStatuses =
         input.subscriptions.filter(s => s.subscribed)
 
       val apiSubStatusesWithFieldDefinitions = NonEmptyList
         .fromList(APISubscriptionStatusWithSubscriptionFields(apiSubscriptionStatuses).toList)
+
+        // TODO
+        println(s"*****2 ${apiSubStatusesWithFieldDefinitions}")
 
       Future.successful(
         apiSubStatusesWithFieldDefinitions
@@ -117,6 +123,9 @@ trait ActionBuilders {
 
       Future.successful({
         val apiSubscription = input.fieldDefinitions.find(d => {d.context == context && d.apiVersion.version == version})
+
+        // TODO
+        println(s"******3 $apiSubscription")
 
         apiSubscription match {
           case apiSubscription if apiSubscription.isEmpty => Left(NotFound(errorHandler.notFoundTemplate))
