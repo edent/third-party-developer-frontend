@@ -71,17 +71,11 @@ trait ActionBuilders {
         case NoSubscriptionFieldsRefinerBehaviour.Redirect(url) => play.api.mvc.Results.Redirect(url)
       }
 
-      // TODO
-      println(s"*****1 ${input.subscriptions}")
-
       val apiSubscriptionStatuses =
         input.subscriptions.filter(s => s.subscribed)
 
       val apiSubStatusesWithFieldDefinitions = NonEmptyList
         .fromList(APISubscriptionStatusWithSubscriptionFields(apiSubscriptionStatuses).toList)
-
-        // TODO
-        println(s"*****2 ${apiSubStatusesWithFieldDefinitions}")
 
       Future.successful(
         apiSubStatusesWithFieldDefinitions
@@ -122,19 +116,13 @@ trait ActionBuilders {
       implicit val implicitRequest: Request[A] = input.applicationRequest.request
 
       Future.successful({
-        val apiSubscription = input.fieldDefinitions.find(d => {d.context == context && d.apiVersion.version == version})
-
-        // TODO
-        println(s"******3 $apiSubscription")
+        val apiSubscription =
+          input.fieldDefinitions.filter(d => {d.context == context && d.apiVersion.version == version})
 
         apiSubscription match {
-          case apiSubscription if apiSubscription.isEmpty => Left(NotFound(errorHandler.notFoundTemplate))
-          case apiSubscription if apiSubscription.size == 1 => {
-            val apiDetails = apiSubscription.head
-
-            Right(ApplicationWithSubscriptionFields(apiDetails, input.applicationRequest))}
-          
-          case _ => throw new RuntimeException("Bang!") // TODO : Better error. Too many matches?
+          case Nil => Left(NotFound(errorHandler.notFoundTemplate))
+          case apiDetails::Nil => Right(ApplicationWithSubscriptionFields(apiDetails, input.applicationRequest))
+          case _ => throw new RuntimeException(s"Too many APIs match for; context: $context version: $version")
         }
       })
     }

@@ -54,8 +54,7 @@ class TestController( val cookieSigner: CookieSigner,
                       val sessionService: SessionService,
                       val errorHandler: ErrorHandler,
                       val applicationService: ApplicationService)
-                      (implicit val ec: ExecutionContext, val appConfig: ApplicationConfig) extends ApplicationController {
-}
+                      (implicit val ec: ExecutionContext, val appConfig: ApplicationConfig) extends ApplicationController {}
 
 class ActionBuildersSpec extends BaseControllerSpec
   with UnitSpec 
@@ -74,7 +73,7 @@ class ActionBuildersSpec extends BaseControllerSpec
     implicit val cookieSigner: CookieSigner = fakeApplication.injector.instanceOf[CookieSigner]
     lazy val messagesApi = fakeApplication.injector.instanceOf[MessagesApi]
     implicit val ec: ExecutionContext = fakeApplication.injector.instanceOf[ExecutionContext]
-    
+
     /////////////
     // TODO - Move this to a request train (two - logged in & not logged in?)
     val developer = Developer("thirdpartydeveloper@example.com", "John", "Doe")
@@ -82,83 +81,68 @@ class ActionBuildersSpec extends BaseControllerSpec
     val session = Session(sessionId, developer, LoggedInState.LOGGED_IN)
 
     fetchSessionByIdReturns(sessionId, session)
-
+   
     private val sessionParams = Seq(
       "csrfToken" -> fakeApplication.injector.instanceOf[TokenProvider].generateToken
     )
     /////////////
 
-    val underTest = new TestController(cookieSigner, messagesApi, sessionServiceMock, errorHandler, applicationServiceMock) {
+    val application = buildApplication(developer.email)
+    val subscriptionWithoutSubFields = buildAPISubscriptionStatus("api name")
+    val subscriptionWithSubFields = buildAPISubscriptionStatus(
+        "api name", 
+        fields = Some(buildSubscriptionFieldsWrapper(application,NonEmptyList.one(buildSubscriptionFieldValue("field1")))))
+    
+    
+    val underTest = new TestController(cookieSigner, messagesApi, sessionServiceMock, errorHandler, applicationServiceMock)
 
-      // def stuff(applicationId: String, apiContext: String, apiVersion: String) : Action[AnyContent] = {
-      //   subFieldsDefinitionsExistActionByApi(applicationId, apiContext, apiVersion) { definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
-      //     ???
-      //   }
-      // }
-    }
+    fetchByApplicationIdReturns(application)
 
-    // TODO: This requires a DevHubAuthorization (which underTest is), so need to be after that's contruction.
+    // TODO: This requires a DevHubAuthorization (which underTest is), so need to be after that's construction.
     val loggedInRequest: FakeRequest[AnyContentAsEmpty.type] = FakeRequest()
       .withLoggedIn(underTest, implicitly)(sessionId)
       .withSession(sessionParams: _*)
+
+    def runTestAction(context: String, version: String, expectedStatus: Int) = {
+      val testResultBody = "was called"
+     
+      val result = await(underTest.subFieldsDefinitionsExistActionByApi(application.id, context, version) { 
+        definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
+            Future.successful(underTest.Ok(testResultBody))
+      }(loggedInRequest))
+        
+      status(result) shouldBe expectedStatus
+      if (expectedStatus == OK) {
+        bodyOf(result) shouldBe testResultBody
+      } else {
+        bodyOf(result) should not be testResultBody
+      }
+    }
   }
   
-  "subscriptionFieldsRefiner" should {
+  "subFieldsDefinitionsExistActionByApi" should {
+    "Found one" in new Setup {  
+      givenApplicationHasSubs(application, Seq(subscriptionWithSubFields))
 
-    "Not found" in new Setup {
-      // val application = buildApplication(developer.email)
-      // val subscription = buildAPISubscriptionStatus("cheese")
-
-      // fetchByApplicationIdReturns(application)
-  
-      // givenApplicationHasSubs(application, Seq(subscription))
-
-      // val result = await(underTest.subFieldsDefinitionsExistActionByApi(application.id, "context", "version"){ 
-      //   definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
-      //   //  Future.successful(Ok(""))
-      //     throw new NotImplementedError("Bang!")
-      //   }(loggedInRequest))
-      // //val result: Result = await(underTest.stuff("appId", "context", "verion")(request))
-
-      // status(result) shouldBe NOT_FOUND
+      runTestAction(subscriptionWithSubFields.context, subscriptionWithSubFields.apiVersion.version, OK)
     }
 
-    "Fond one" in new Setup {
+    "Wrong context" in new Setup {
+      givenApplicationHasSubs(application, Seq(subscriptionWithSubFields))
 
-      // @App refiner
-      // invalid app
-      // Not a collaborator
-
-      // @Some other refiner
-      // No subs at all
-      // subs but not subscribed
-
-      // @The refiner we want to test
-      // Wrong context / version
-      // subscription with no fields 
-      
-      val application = buildApplication(developer.email)
-      val subscription = buildAPISubscriptionStatus(
-        "api name", 
-        fields = Some(buildSubscriptionFieldsWrapper(application,NonEmptyList.one(buildSubscriptionFieldValue("field1")))))
-
-      fetchByApplicationIdReturns(application)
-  
-      givenApplicationHasSubs(application, Seq(subscription))
-
-      val testResultBody = "was called"
-
-      val result = await(underTest.subFieldsDefinitionsExistActionByApi(application.id, subscription.context, subscription.apiVersion.version){ 
-        definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
-           Future.successful(underTest.Ok(testResultBody))
-        }(loggedInRequest))
-
-      status(result) shouldBe OK
-      bodyOf(result) shouldBe testResultBody
+      runTestAction("wrong-context", subscriptionWithSubFields.apiVersion.version, NOT_FOUND)
     }
 
-    "More than one errors" in {
+    "Wrong version" in new Setup {      
+      givenApplicationHasSubs(application, Seq(subscriptionWithSubFields))
 
+      runTestAction(subscriptionWithSubFields.context, "wrong-version", NOT_FOUND)
+    }
+
+    "Subscription with no fields" in new Setup {       
+      givenApplicationHasSubs(application, Seq(subscriptionWithoutSubFields))
+
+      runTestAction(subscriptionWithSubFields.context, subscriptionWithSubFields.apiVersion.version, NOT_FOUND)
     }
   }
 }
