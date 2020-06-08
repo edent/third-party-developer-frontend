@@ -48,6 +48,28 @@ import mocks.service.SessionServiceMock
 import mocks.service.ApplicationServiceMock
 import cats.data.NonEmptyList
 import scala.concurrent.Future
+import org.scalatest.Suite
+import domain.DeveloperSession
+import security.DevHubAuthorization
+
+trait LoggedInRequestTestHelper extends SessionServiceMock with WithFakeApplication with DevHubAuthorization {
+  this: BaseControllerSpec =>    
+    val sessionService = mock[SessionService]
+
+    val developer = Developer("thirdpartydeveloper@example.com", "John", "Doe")
+    val sessionId = "sessionId"
+    val session = Session(sessionId, developer, LoggedInState.LOGGED_IN)
+
+    fetchSessionByIdReturns(sessionId, session)
+   
+    private val sessionParams = Seq(
+      "csrfToken" -> fakeApplication.injector.instanceOf[TokenProvider].generateToken
+    )
+
+    lazy val loggedInRequest: FakeRequest[AnyContentAsEmpty.type] = FakeRequest()
+      .withLoggedIn(this, implicitly)(sessionId)
+      .withSession(sessionParams: _*)
+}
 
 class TestController( val cookieSigner: CookieSigner,
                       val messagesApi: MessagesApi,
@@ -59,49 +81,29 @@ class TestController( val cookieSigner: CookieSigner,
 class ActionBuildersSpec extends BaseControllerSpec
   with UnitSpec 
   with MockitoSugar 
-  with WithFakeApplication 
-  with SessionServiceMock 
   with ApplicationServiceMock
   with builder.ApplicationBuilder
-  with builder.SubscriptionsBuilder {
+  with builder.SubscriptionsBuilder
+  with LoggedInRequestTestHelper {
   trait Setup {
     
     implicit var playApplication = fakeApplication
     
     val errorHandler: ErrorHandler = fakeApplication.injector.instanceOf[ErrorHandler]
     implicit val appConfig: ApplicationConfig = mock[ApplicationConfig]
-    implicit val cookieSigner: CookieSigner = fakeApplication.injector.instanceOf[CookieSigner]
+   
     lazy val messagesApi = fakeApplication.injector.instanceOf[MessagesApi]
     implicit val ec: ExecutionContext = fakeApplication.injector.instanceOf[ExecutionContext]
-
-    /////////////
-    // TODO - Move this to a request train (two - logged in & not logged in?)
-    val developer = Developer("thirdpartydeveloper@example.com", "John", "Doe")
-    val sessionId = "sessionId"
-    val session = Session(sessionId, developer, LoggedInState.LOGGED_IN)
-
-    fetchSessionByIdReturns(sessionId, session)
-   
-    private val sessionParams = Seq(
-      "csrfToken" -> fakeApplication.injector.instanceOf[TokenProvider].generateToken
-    )
-    /////////////
 
     val application = buildApplication(developer.email)
     val subscriptionWithoutSubFields = buildAPISubscriptionStatus("api name")
     val subscriptionWithSubFields = buildAPISubscriptionStatus(
         "api name", 
         fields = Some(buildSubscriptionFieldsWrapper(application,NonEmptyList.one(buildSubscriptionFieldValue("field1")))))
-    
-    
+  
     val underTest = new TestController(cookieSigner, messagesApi, sessionServiceMock, errorHandler, applicationServiceMock)
 
     fetchByApplicationIdReturns(application)
-
-    // TODO: This requires a DevHubAuthorization (which underTest is), so need to be after that's construction.
-    val loggedInRequest: FakeRequest[AnyContentAsEmpty.type] = FakeRequest()
-      .withLoggedIn(underTest, implicitly)(sessionId)
-      .withSession(sessionParams: _*)
 
     def runTestAction(context: String, version: String, expectedStatus: Int) = {
       val testResultBody = "was called"
