@@ -92,15 +92,8 @@ object ManageSubscriptions {
       EditSubscriptionValueFormData(name, value)
   }
 
-  def toFormValues(
-      editSubscriptionValueFormData: EditSubscriptionValueFormData
-  ): Option[(String, String)] = {
-    Some(
-      (
-        editSubscriptionValueFormData.name,
-        editSubscriptionValueFormData.value
-      )
-    )
+  def toFormValues(editSubscriptionValueFormData: EditSubscriptionValueFormData): Option[(String, String)] = {
+    Some((editSubscriptionValueFormData.name, editSubscriptionValueFormData.value))
   }
 }
 
