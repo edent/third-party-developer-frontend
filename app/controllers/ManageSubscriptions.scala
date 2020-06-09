@@ -150,12 +150,14 @@ class ManageSubscriptions @Inject() (
     }
 
     val apiSubscription = definitionsRequest.apiSubscription
+//TODO pass in apiSubscription to subscriptionConfigurationSave()
 
     subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, (form : Form[EditApiConfigurationFormData])=>
       editApiMetadata(definitionsRequest.applicationRequest.application, apiSubscription, form, mode)
     )
   }
 
+  // TODO: Make the change in here
   private def subscriptionConfigurationSave(apiContext: String,
                                             apiVersion: String,
                                             successRedirect: Call,

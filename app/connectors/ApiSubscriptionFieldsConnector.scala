@@ -186,7 +186,8 @@ object SubscriptionFieldsConnector {
       description = f.description,
       shortDescription = f.shortDescription,
       `type` = f.`type`,
-      hint = f.hint
+      hint = f.hint,
+      access = f.access
     )
   }
 

@@ -26,11 +26,11 @@ object ApiSubscriptionFields {
       description: String,
       shortDescription: String,
       hint: String,
-      `type`: String
+      `type`: String,
+      access: AccessRequirements
   )
 
   case class SubscriptionFieldValue(definition: SubscriptionFieldDefinition, value: String)
-
 
   sealed trait FieldsDeleteResult
   case object FieldsDeleteSuccessResult extends FieldsDeleteResult
@@ -61,8 +61,10 @@ object ApiSubscriptionFields {
     implicit val format: Format[SubscriptionFieldsPutRequest] =
       Json.format[SubscriptionFieldsPutRequest]
   }
-
+  
+//TODO new failure for access denied
   sealed trait SaveSubscriptionFieldsResponse
   case object SaveSubscriptionFieldsSuccessResponse extends SaveSubscriptionFieldsResponse
   case class SaveSubscriptionFieldsFailureResponse(fieldErrors : Map[String, String]) extends SaveSubscriptionFieldsResponse
+  case object SaveSubscriptionFieldsAccessDeniedResponse extends SaveSubscriptionFieldsResponse
 }
