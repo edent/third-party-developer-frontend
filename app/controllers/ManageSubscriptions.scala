@@ -36,6 +36,7 @@ import views.html.managesubscriptions.editApiMetadata
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.Future.successful
 import domain.SaveSubsFieldsPageMode
+import domain.ApiSubscriptionFields.SubscriptionFieldDefinition
 
 object ManageSubscriptions {
 
@@ -152,12 +153,15 @@ class ManageSubscriptions @Inject() (
     val apiSubscription = definitionsRequest.apiSubscription
 //TODO pass in apiSubscription to subscriptionConfigurationSave()
 
-    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, (form : Form[EditApiConfigurationFormData])=>
+    val subscriptionFieldDefinitions = apiSubscription.fields.fields.map(value => value.definition)
+
+    subscriptionConfigurationSave2(apiContext, apiVersion, successRedirectUrl, subscriptionFieldDefinitions, (form : Form[EditApiConfigurationFormData])=>
       editApiMetadata(definitionsRequest.applicationRequest.application, apiSubscription, form, mode)
     )
   }
 
   // TODO: Make the change in here
+  // TODO: Delete me
   private def subscriptionConfigurationSave(apiContext: String,
                                             apiVersion: String,
                                             successRedirect: Call,
@@ -191,6 +195,57 @@ class ManageSubscriptions @Inject() (
 
     EditApiConfigurationFormData.form.bindFromRequest.fold(handleInvalidForm, handleValidForm)
   }
+
+
+    // TODO: Make the change in here
+  private def subscriptionConfigurationSave2(apiContext: String,
+                                            apiVersion: String,
+                                            successRedirect: Call,
+                                            subscriptionFieldDefinitions: Seq[SubscriptionFieldDefinition],
+                                            validationFailureView : Form[EditApiConfigurationFormData] => Html)
+                                           (implicit hc: HeaderCarrier, request: ApplicationRequest[_]): Future[Result] = {
+
+    def handleValidForm(validForm: EditApiConfigurationFormData) = {
+      def saveFields(validForm: EditApiConfigurationFormData)(implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
+        if (validForm.fields.nonEmpty) {
+          println("*** Saving using new stuff")
+          val subscriptionLookup = subscriptionFieldDefinitions.map(d => (d.name -> d)).toMap
+
+          val valuesToSave : Seq[SubscriptionFieldValue] = validForm.fields.map(formField => {
+            val subscriptionName = formField.name
+            val newValue = formField.value
+
+            val definition = subscriptionLookup.get(subscriptionName).getOrElse(throw new RuntimeException("Bang"))
+            SubscriptionFieldValue(definition , newValue)
+          })
+
+          subFieldsService.saveFieldValues2(request.role, request.application, apiContext, apiVersion, valuesToSave)
+          // TODO: Something todo with handing an error response? i.e. Forbidden
+        
+        } else {
+          Future.successful(SaveSubscriptionFieldsSuccessResponse)
+        }
+      }
+
+      saveFields(validForm) map {
+        case SaveSubscriptionFieldsSuccessResponse => Redirect(successRedirect)
+        case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>
+          val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
+          val vm = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
+          
+          BadRequest(validationFailureView(vm))
+      }
+    }
+
+    def handleInvalidForm(formWithErrors: Form[EditApiConfigurationFormData]) = {
+      val displayedStatus = formWithErrors.data.getOrElse("displayedStatus", throw new Exception("Missing form field: displayedStatus"))
+    
+      Future.successful(BadRequest(validationFailureView(formWithErrors)))
+    }
+
+    EditApiConfigurationFormData.form.bindFromRequest.fold(handleInvalidForm, handleValidForm)
+  }
+
 
   def subscriptionConfigurationStart(applicationId: String): Action[AnyContent] =
     subFieldsDefinitionsExistAction(applicationId,
