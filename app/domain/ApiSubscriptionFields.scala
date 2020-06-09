@@ -66,5 +66,5 @@ object ApiSubscriptionFields {
   sealed trait SaveSubscriptionFieldsResponse
   case object SaveSubscriptionFieldsSuccessResponse extends SaveSubscriptionFieldsResponse
   case class SaveSubscriptionFieldsFailureResponse(fieldErrors : Map[String, String]) extends SaveSubscriptionFieldsResponse
-  case object SaveSubscriptionFieldsAccessDeniedResponse extends SaveSubscriptionFieldsResponse
+  case object SaveSubscriptionFieldsAccessDeniedResponse extends SaveSubscriptionFieldsResponse // Move to own trait
 }

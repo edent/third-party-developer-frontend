@@ -120,7 +120,7 @@ class SubscriptionFieldsConnectorSpec extends UnitSpec with ScalaFutures with Mo
   }
 
   "fetchFieldsValuesWithPrefetchedDefinitions" should {
-
+    
     val subscriptionFieldValue = buildSubscriptionFieldValue("my-name", Some("my-value"))
     val subscriptionDefinition = subscriptionFieldValue.definition
 

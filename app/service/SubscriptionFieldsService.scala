@@ -23,6 +23,12 @@ import service.SubscriptionFieldsService.DefinitionsByApiVersion
 import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.{ExecutionContext, Future}
+import domain.Role
+import domain.DevhubAccessRequirement
+import domain.DevhubAccessLevel.Developer
+import domain.DevhubAccessLevel
+import domain.Role.ADMINISTRATOR
+import domain.Role.DEVELOPER
 
 @Singleton
 class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(implicit val ec: ExecutionContext) {
@@ -41,14 +47,29 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
   def saveFieldValues(application: Application, apiContext: String, apiVersion: String, fields: Fields)
                      (implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
 
-    // TODO: Validate access
-
-
-
-
     val connector = connectorsWrapper.forEnvironment(application.deployedTo).apiSubscriptionFieldsConnector
 
     connector.saveFieldValues(application.clientId, apiContext, apiVersion, fields)
+  }
+
+  def saveFieldValues2(role: Role, application: Application, apiContext: String, apiVersion: String, newValues : Seq[SubscriptionFieldValue])
+                        (implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
+    
+    val devhubAccessLevel = DevhubAccessLevel.fromRole(role)
+
+    def allowedToWriteToAllValues(values: Seq[SubscriptionFieldValue], devhubAccessLevel: DevhubAccessLevel) : Boolean = {
+      values.forall(_.definition.access.devhub.satisfiesWrite(devhubAccessLevel))
+    }
+
+    if (allowedToWriteToAllValues(newValues,devhubAccessLevel)) {
+      val connector = connectorsWrapper.forEnvironment(application.deployedTo).apiSubscriptionFieldsConnector
+
+      val fieldsToSave = newValues.map(v => (v.definition.name -> v.value)).toMap
+
+      connector.saveFieldValues(application.clientId, apiContext, apiVersion, fieldsToSave)
+    } else { 
+      Future.successful(SaveSubscriptionFieldsAccessDeniedResponse)
+    }
   }
 
   def getAllFieldDefinitions(environment: Environment)(implicit hc: HeaderCarrier): Future[DefinitionsByApiVersion] = {

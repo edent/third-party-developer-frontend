@@ -33,7 +33,7 @@ import scala.concurrent.Future
 import domain.ApiSubscriptionFields.SubscriptionFieldValue
 
 trait SubscriptionFieldsConnectorMock extends MockitoSugar {
-  val mockSubscriptionFieldsConnector= mock[AbstractSubscriptionFieldsConnector]
+  val mockSubscriptionFieldsConnector = mock[AbstractSubscriptionFieldsConnector]
 
   def fetchFieldValuesReturns(clientId: String, context:String, version: String)(toReturn: Seq[SubscriptionFieldValue]) : Unit =
      given(

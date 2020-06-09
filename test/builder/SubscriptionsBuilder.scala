@@ -60,10 +60,16 @@ trait SubscriptionsBuilder {
     SubscriptionFieldsWrapper(applicationId, s"clientId-$applicationId", s"context-$applicationId", s"apiVersion-$applicationId", fields = fields)
   }
 
-  def buildSubscriptionFieldValue(name: String, value: Option[String] = None) : SubscriptionFieldValue = {
+  def buildSubscriptionFieldValue(name: String, value: Option[String] = None, accessRequirements: AccessRequirements = AccessRequirements.Default ) : SubscriptionFieldValue = {
 
-    val default = AccessRequirements.Default
+    val definitnion = SubscriptionFieldDefinition(
+      name,
+      s"description-$name",
+      s"hint-$name",
+      "STRING",
+      s"shortDescription-$name",
+      accessRequirements)
 
-    SubscriptionFieldValue(SubscriptionFieldDefinition(name, s"description-$name", s"hint-$name", "STRING", s"shortDescription-$name", default), value.getOrElse(s"value-$name"))
+    SubscriptionFieldValue(definitnion, value.getOrElse(s"value-$name"))
   }
 }

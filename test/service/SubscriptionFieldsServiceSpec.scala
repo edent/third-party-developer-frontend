@@ -23,8 +23,8 @@ import domain.ApiSubscriptionFields.{SubscriptionFieldDefinition, SaveSubscripti
 import domain.{APIIdentifier, Application, Environment}
 import org.joda.time.DateTime
 import org.mockito.ArgumentMatchers.{any, anyString, eq => meq}
+import org.mockito.Mockito.{never,verify}
 import org.mockito.BDDMockito.given
-import org.mockito.Mockito.verify
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import play.api.http.Status.CREATED
@@ -36,8 +36,12 @@ import mocks.connector.SubscriptionFieldsConnectorMock
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import builder.SubscriptionsBuilder
+import domain.AccessRequirements
+import domain.DevhubAccessRequirements
+import domain.DevhubAccessRequirement.NoOne
+import domain.Role
 
-class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with MockitoSugar with SubscriptionFieldsConnectorMock with SubscriptionsBuilder {
+class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with MockitoSugar with SubscriptionsBuilder {
 
   val apiContext: String = "sub-ser-test"
   val apiVersion: String = "1.0"
@@ -47,7 +51,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
   val application =
     Application(applicationId, clientId, applicationName, DateTime.now(), DateTime.now(), Environment.PRODUCTION)
 
-  trait Setup {
+  trait Setup extends SubscriptionFieldsConnectorMock{
 
     lazy val locked = false
 
@@ -142,21 +146,52 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
       )
     }
 
-    //  "save the fields fails with access denied" in new Setup {
+    "save the fields2" in new Setup {
+      val developerRole  = Role.DEVELOPER
+      
+      val access = AccessRequirements.Default
+
+      val definition = buildSubscriptionFieldValue("field-write-allowed", accessRequirements = access).definition
+      
+      val newValue = SubscriptionFieldValue(definition, "newValue")
+
+      given(mockSubscriptionFieldsConnector.saveFieldValues(
+          any(),
+          any(),
+          any(),
+          any())(any[HeaderCarrier]))
+        .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+
+      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, Seq(newValue)))
+
+      result shouldBe SaveSubscriptionFieldsSuccessResponse
+
+      val expectedField = Map(definition.name -> newValue.value)
+      verify(mockSubscriptionFieldsConnector)
+        .saveFieldValues(
+          meq(clientId),
+          meq(apiContext),
+          meq(apiVersion),
+          meq(expectedField))(any[HeaderCarrier])
+    }
+
+     "save the fields fails with access denied" in new Setup {
     
-    //   // TODO: Set! meh.
+      val developerRole = Role.DEVELOPER
+      
+      val access = AccessRequirements(devhub = DevhubAccessRequirements(NoOne, NoOne))
 
-    //   private val fieldsValues = Map("field1" -> "val001", "field2" -> "val002")
+      val definition = buildSubscriptionFieldValue("field-denied", accessRequirements = access).definition
 
-    //   // given(
-    //   //   mockSubscriptionFieldsConnector
-    //   //     .saveFieldValues(clientId, apiContext, apiVersion, fieldsValues)
-    //   // ).willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+      // private val fieldsValues = Map("field-allowed" -> "val001", value.definition.name -> "val002")
+      val newValues = Seq(SubscriptionFieldValue(definition, "newValue"))
 
-    //   val result = await(underTest.saveFieldValues(application, apiContext, apiVersion, fieldsValues))
+      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, newValues))
 
-    //   verify(mockSubscriptionFieldsConnector, never())
-    //     .saveFieldValues(any(), any(), any(), any())
-    // }
+      result shouldBe SaveSubscriptionFieldsAccessDeniedResponse
+
+      verify(mockSubscriptionFieldsConnector, never())
+        .saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier])
+    }
   }
 }
