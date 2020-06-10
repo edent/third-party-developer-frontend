@@ -17,13 +17,14 @@
 @import include._
 @import domain._
 @import model.Crumb
-@import controllers.ManageSubscriptions.EditApiConfigurationFormData
+@import controllers.ManageSubscriptions.{EditApiConfigurationFormData, EditApiConfigurationViewModel}
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 
 @import views.helper.IdFormatter
 
 @(
   app: Application,
+  viewModel: EditApiConfigurationViewModel,
   apiSubscription: APISubscriptionStatusWithSubscriptionFields,
   form: Form[EditApiConfigurationFormData],
   mode: SaveSubsFieldsPageMode
@@ -34,7 +35,7 @@
     applicationConfig: config.ApplicationConfig
 )
 
-@pageHeading = @{ s"${apiSubscription.name} ${apiSubscription.apiVersion.version} ${apiSubscription.apiVersion.displayedStatus}" }
+@pageHeading = @{ s"${viewModel.apiName} ${viewModel.apiVersion} ${viewModel.displayedStatus}" }
 
 @devMain(
     title = pageHeading,
@@ -58,8 +59,9 @@
 
     @editApiMetadataPartial(
       app,
+      viewModel,
       apiSubscription,
       form,
-      routes.ManageSubscriptions.saveSubscriptionFields(app.id, apiSubscription.fields.apiContext, apiSubscription.fields.apiVersion, mode)
+      routes.ManageSubscriptions.saveSubscriptionFields(app.id, viewModel.apiContext, viewModel.apiVersion, mode)
     )
 }

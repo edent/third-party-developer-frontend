@@ -17,13 +17,14 @@
 @import views.helper.GlobalSection._
 @import controllers.ErrorFormBuilder._
 
-@import controllers.ManageSubscriptions.EditApiConfigurationFormData
+@import controllers.ManageSubscriptions.{EditApiConfigurationFormData, EditApiConfigurationViewModel}
 @import domain.{Application, APISubscriptionStatusWithSubscriptionFields}
 @import domain.ApiSubscriptionFields.SubscriptionFieldsWrapper
 @import views.html.include.fieldError
 @import views.helper.IdFormatter
 @(
   app: Application,
+  viewModel: EditApiConfigurationViewModel,
   apiSubscription : APISubscriptionStatusWithSubscriptionFields,
   form: Form[EditApiConfigurationFormData],
   formPostUrl: Call,
@@ -38,33 +39,31 @@
 
  @helper.CSRF.formField
 
- @helper.repeatWithIndex(form("fields")) { (field, idx) =>
-  @defining(field("name").value.getOrElse("")) { formFieldId =>
-    @defining(apiSubscription.fields.fields.toList(idx)) { subscriptionField => 
-        <div class="form-group @if(form.errors(formFieldId).nonEmpty){form-group-error}">
+ @for((field, idx) <- viewModel.fields.zipWithIndex){ 
+  @defining(field.formFieldData.name) { formFieldId =>
+      <div class="form-group @if(form.errors(formFieldId).nonEmpty){form-group-error}">
 
-          @fieldError(form.errors, formFieldId)
+        @fieldError(form.errors, formFieldId)
 
-          <input type="hidden" name="fields[@idx].name" value="@field("name").value.getOrElse("")">
+        <input type="hidden" name="fields[@idx].name" value="@field.formFieldData.name">
 
-          <label class="form-label" for="@formFieldId">
-            @{subscriptionField.definition.description}
-          </label>
-          <span class="form-hint">@{subscriptionField.definition.hint}</span>
+        <label class="form-label" for="@formFieldId">
+          @{field.description}
+        </label>
+        <span class="form-hint">@{field.hint}</span>
 
-          <input type="text"
-            name="fields[@idx].value"
-            value="@{field("value").value.getOrElse("")}"
-            class="form-input input--medium @if(form.errors(formFieldId).nonEmpty){form-control-error}"
-            id="@formFieldId" />
+        <input type="text"
+          name="fields[@idx].value"
+          value="@{field.formFieldData.value}"
+          class="form-input input--medium @if(form.errors(formFieldId).nonEmpty){form-control-error}"
+          id="@formFieldId" />
 
-        </div>
-      }
+      </div>
     } 
   }
 
  <div class="form-group">
-  <button id="@{IdFormatter.identifier(apiSubscription.fields.apiContext, apiSubscription.fields.apiVersion)}-submit" class="button submit-button" type="submit">Save changes</button>
+  <button id="@{IdFormatter.identifier(viewModel.apiContext, viewModel.apiVersion)}-submit" class="button submit-button" type="submit">Save changes</button>
 
   @if(skipLink.isDefined){
    <a href="@{skipLink.get}" class="secondary-button">I'll do this later</a>

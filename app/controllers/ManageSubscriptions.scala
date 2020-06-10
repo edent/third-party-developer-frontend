@@ -38,6 +38,9 @@ import scala.concurrent.Future.successful
 import domain.SaveSubsFieldsPageMode
 import service.SubscriptionFieldsService.ValidateAgainstRole
 import domain.ApiSubscriptionFields.SubscriptionFieldDefinition
+import domain.Role._
+import domain.Role
+import domain.DevhubAccessLevel
 
 object ManageSubscriptions {
 
@@ -62,9 +65,24 @@ object ManageSubscriptions {
   }
 
   def toForm(in: APISubscriptionStatusWithSubscriptionFields): EditApiConfigurationFormData = {
-    EditApiConfigurationFormData(fields = in.fields.fields.toList.map(field => EditSubscriptionValueFormData(field.definition.name, field.value)))
+    
+    def toEditSubscriptionValueFormData(fieldValue: SubscriptionFieldValue) : EditSubscriptionValueFormData = {
+      // TODO: 
+      // val role : Role = Role.DEVELOPER
+      // val accessLevel = DevhubAccessLevel.fromRole(role)
+      // fieldValue.definition.access.devhub.satisfiesWrite(accessLevel)
+      // val canWrite = true
+      EditSubscriptionValueFormData(fieldValue.definition.name, fieldValue.value)
+    }
+
+    EditApiConfigurationFormData(fields = in.fields.fields.toList.map(toEditSubscriptionValueFormData(_)))
   }
 
+  // TODO: Add the EditApiConfigurationFormData for here, and remove the SubscriptionFieldViewModel.formFieldData
+  // In the view go back to zipping the two lists together.
+  case class EditApiConfigurationViewModel(apiName: String, apiVersion: String, apiContext: String, displayedStatus: String, fields: Seq[SubscriptionFieldViewModel])
+  case class SubscriptionFieldViewModel(description: String, hint: String, formFieldData: EditSubscriptionValueFormData)
+ 
   case class EditApiConfigurationFormData(fields: List[EditSubscriptionValueFormData])
   case class EditSubscriptionValueFormData(name: String, value: String)
 
@@ -125,15 +143,27 @@ class ManageSubscriptions @Inject() (
 
       successful(Ok(views.html.managesubscriptions.listApiSubscriptions(definitionsRequest.applicationRequest.application, details)))
     }
+  
+  // TODO: Move to companion
+  def toEditViewModel(apiSubscription : APISubscriptionStatusWithSubscriptionFields): EditApiConfigurationViewModel = {
+     val fieldsViewModel : Seq[SubscriptionFieldViewModel] = apiSubscription.fields.fields
+        .map(field => SubscriptionFieldViewModel(field.definition.description, field.definition.hint, EditSubscriptionValueFormData(field.definition.name, field.value)))
+      
+      EditApiConfigurationViewModel(apiSubscription.name, apiSubscription.apiVersion.version, apiSubscription.context, apiSubscription.apiVersion.displayedStatus, fieldsViewModel)
+  }
 
   def editApiMetadataPage(applicationId: String, context: String, version: String, mode: SaveSubsFieldsPageMode): Action[AnyContent] =
     subFieldsDefinitionsExistActionByApi(applicationId, context, version) { definitionsRequest: ApplicationWithSubscriptionFields[AnyContent] =>
       implicit val rq: Request[AnyContent] = definitionsRequest.applicationRequest.request
       implicit val appRQ: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
 
-      val apiSubscription =  definitionsRequest.apiSubscription
-        
-      successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, apiSubscription, toViewModel(apiSubscription), mode))) 
+      val apiSubscription : APISubscriptionStatusWithSubscriptionFields =  definitionsRequest.apiSubscription
+  
+      val viewModel = toEditViewModel(apiSubscription)
+
+      // TODO: From the model return if it's read only or not
+
+      successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, viewModel, apiSubscription, toViewModel(apiSubscription), mode))) 
     }
 
   def saveSubscriptionFields(applicationId: String,
@@ -153,10 +183,12 @@ class ManageSubscriptions @Inject() (
 
     val apiSubscription = definitionsRequest.apiSubscription
 
+    val viewModel = toEditViewModel(apiSubscription)
+
     val subscriptionFieldDefinitions = apiSubscription.fields.fields.map(value => value.definition)
 
     subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, subscriptionFieldDefinitions, (form : Form[EditApiConfigurationFormData])=>
-      editApiMetadata(definitionsRequest.applicationRequest.application, apiSubscription, form, mode)
+      editApiMetadata(definitionsRequest.applicationRequest.application,viewModel, apiSubscription, form, mode)
     )
   }
 
