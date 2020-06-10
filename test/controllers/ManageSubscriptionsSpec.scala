@@ -376,7 +376,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
         givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-        when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier]()))
+        when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
           .thenReturn(Future.successful(SaveSubscriptionFieldsFailureResponse(fieldErrors)))
 
         private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
@@ -391,6 +391,28 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
         assertIsSandboxJourneyApiConfigureEditPage(result)
 
         bodyOf(result) should include("apiName is invalid error message")
+      }
+
+      "save action fails with access denied and shows forbidden error message" in new ManageSubscriptionsSetup {
+        val apiSubscriptionStatus: APISubscriptionStatus = exampleSubscriptionWithFields("api1", 1)
+        val newSubscriptionValue = "my invalid value"
+        val pageNumber = 1
+
+        val fieldErrors = Map("apiName" -> "apiName is invalid error message")
+
+        givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
+
+        when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+          .thenReturn(Future.successful(SaveSubscriptionFieldsAccessDeniedResponse))
+
+        private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
+
+        private val loggedInWithFormValues = editFormPostRequest(subSubscriptionValue.definition.name,newSubscriptionValue)
+
+        private val result = await(addToken(
+          manageSubscriptionController.subscriptionConfigurationPagePost(appId, pageNumber))(loggedInWithFormValues))
+
+        status(result) shouldBe FORBIDDEN
       }
     }
 
