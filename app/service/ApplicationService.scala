@@ -35,6 +35,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import cats.data.NonEmptyList
 import domain.ApiSubscriptionFields.SaveSubscriptionFieldsSuccessResponse
 import domain.ApiSubscriptionFields.SaveSubscriptionFieldsFailureResponse
+import service.SubscriptionFieldsService.SkipRoleValidation
 
 @Singleton
 class ApplicationService @Inject() (
@@ -107,8 +108,7 @@ class ApplicationService @Inject() (
 
     def createEmptyFieldValues(fieldDefinitions: Seq[SubscriptionFieldDefinition]) = {
       fieldDefinitions
-        .map(d => (d.name, ""))
-        .toMap
+        .map(d => SubscriptionFieldValue(d, ""))
     }
 
     trait HasSucceeded
@@ -120,7 +120,7 @@ class ApplicationService @Inject() (
         .flatMap(values => {
           if (!values.exists(field => field.value != "")) {
             subscriptionFieldsService
-              .saveFieldValues(application, context, version, createEmptyFieldValues(fieldDefinitions))
+              .saveFieldValues2(SkipRoleValidation, application, context, version, createEmptyFieldValues(fieldDefinitions))
               .map({
                 case SaveSubscriptionFieldsSuccessResponse => HasSucceeded
                 case error => {

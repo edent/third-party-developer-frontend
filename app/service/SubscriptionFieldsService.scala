@@ -47,14 +47,6 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
     }
   }
 
-  def saveFieldValues(application: Application, apiContext: String, apiVersion: String, fields: Fields)
-                     (implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
-
-    val connector = connectorsWrapper.forEnvironment(application.deployedTo).apiSubscriptionFieldsConnector
-
-    connector.saveFieldValues(application.clientId, apiContext, apiVersion, fields)
-  }
-
   def saveFieldValues2(accessValidation : AccessValidation, application: Application, apiContext: String, apiVersion: String, newValues : Seq[SubscriptionFieldValue])
                         (implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
 

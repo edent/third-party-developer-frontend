@@ -45,6 +45,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.Future._
 import scala.util.Random
+import service.SubscriptionFieldsService.SkipRoleValidation
 
 class ApplicationServiceSpec extends UnitSpec with MockitoSugar with ScalaFutures with SubscriptionsBuilder {
 
@@ -378,7 +379,7 @@ class ApplicationServiceSpec extends UnitSpec with MockitoSugar with ScalaFuture
       await(applicationService.subscribeToApi(productionApplication, context, version)) shouldBe ApplicationUpdateSuccessful
 
       verify(mockProductionApplicationConnector).subscribeToApi(eqTo(productionApplicationId), eqTo(subscription))(any[HeaderCarrier])
-      verify(mockSubscriptionFieldsService, never()).saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier])
+      verify(mockSubscriptionFieldsService, never()).saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier])
     }
 
     "with subscription fields definitions" should {
@@ -392,8 +393,6 @@ class ApplicationServiceSpec extends UnitSpec with MockitoSugar with ScalaFuture
 
         private val fieldDefinitionsWithoutValues = fieldDefinitions.map(d => SubscriptionFieldValue(d, ""))
 
-        private val fields: Fields = fieldDefinitions.map(definition => (definition.name, "")).toMap
-
         theProductionConnectorWillReturnTheApplication(productionApplicationId, productionApplication)
 
         given(mockSubscriptionFieldsService.getFieldDefinitions(eqTo(productionApplication), eqTo(subscription))(any[HeaderCarrier]))
@@ -403,7 +402,7 @@ class ApplicationServiceSpec extends UnitSpec with MockitoSugar with ScalaFuture
 
         given(mockProductionApplicationConnector.subscribeToApi(eqTo(productionApplicationId), any())(any[HeaderCarrier]))
           .willReturn(Future.successful(ApplicationUpdateSuccessful))
-        given(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier]))
+        given(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier]))
           .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
 
         await(applicationService.subscribeToApi(productionApplication, context, version)) shouldBe ApplicationUpdateSuccessful
@@ -411,7 +410,7 @@ class ApplicationServiceSpec extends UnitSpec with MockitoSugar with ScalaFuture
         verify(mockProductionApplicationConnector).subscribeToApi(eqTo(productionApplicationId), eqTo(subscription))(
           any[HeaderCarrier]
         )
-        verify(mockSubscriptionFieldsService).saveFieldValues(eqTo(productionApplication), eqTo(context), eqTo(version), eqTo(fields))(any[HeaderCarrier])
+        verify(mockSubscriptionFieldsService).saveFieldValues2(eqTo(SkipRoleValidation), eqTo(productionApplication), eqTo(context), eqTo(version), eqTo(fieldDefinitionsWithoutValues))(any[HeaderCarrier])
       }
 
       "with values" in new Setup {
@@ -438,7 +437,7 @@ class ApplicationServiceSpec extends UnitSpec with MockitoSugar with ScalaFuture
         await(applicationService.subscribeToApi(productionApplication, context, version)) shouldBe ApplicationUpdateSuccessful
 
         verify(mockProductionApplicationConnector).subscribeToApi(eqTo(productionApplicationId), eqTo(subscription))(any[HeaderCarrier])
-        verify(mockSubscriptionFieldsService, never()).saveFieldValues(any[Application], any[String], any[String], any[Fields])(any[HeaderCarrier])
+        verify(mockSubscriptionFieldsService, never()).saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier])
       }
     
       "but fails to save subscription fields" in new Setup {
@@ -465,7 +464,7 @@ class ApplicationServiceSpec extends UnitSpec with MockitoSugar with ScalaFuture
 
         val errors = Map("fieldName" -> "failure reason")
 
-        given(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier]))
+        given(mockSubscriptionFieldsService.saveFieldValues2(any(),any(), any(), any(), any())(any[HeaderCarrier]))
           .willReturn(Future.successful(SaveSubscriptionFieldsFailureResponse(errors)))
 
 

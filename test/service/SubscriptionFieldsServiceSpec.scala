@@ -131,24 +131,6 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
 
   "saveFieldValues" should {
     "save the fields" in new Setup {
-      private val fieldsValues = Map("field1" -> "val001", "field2" -> "val002")
-
-      given(
-        mockSubscriptionFieldsConnector
-          .saveFieldValues(clientId, apiContext, apiVersion, fieldsValues)
-      ).willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
-
-      await(underTest.saveFieldValues(application, apiContext, apiVersion, fieldsValues))
-
-      verify(mockSubscriptionFieldsConnector).saveFieldValues(
-        clientId,
-        apiContext,
-        apiVersion,
-        fieldsValues
-      )
-    }
-
-    "save the fields2" in new Setup {
       val developerRole  = ValidateAgainstRole(Role.DEVELOPER)
       
       val access = AccessRequirements.Default
