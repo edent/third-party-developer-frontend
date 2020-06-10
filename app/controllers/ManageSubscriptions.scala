@@ -20,7 +20,7 @@ import cats.data.NonEmptyList
 import com.google.inject.{Inject, Singleton}
 import config.{ApplicationConfig, ErrorHandler}
 import domain.{APISubscriptionStatusWithSubscriptionFields, CheckInformation, Environment, Application}
-import domain.ApiSubscriptionFields.{SaveSubscriptionFieldsFailureResponse, SaveSubscriptionFieldsResponse, SaveSubscriptionFieldsSuccessResponse, SubscriptionFieldValue}
+import domain.ApiSubscriptionFields._
 import model.NoSubscriptionFieldsRefinerBehaviour
 import play.api.data
 import play.api.data.Form
@@ -36,10 +36,8 @@ import views.html.managesubscriptions.editApiMetadata
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.Future.successful
 import domain.SaveSubsFieldsPageMode
-import domain.ApiSubscriptionFields.SubscriptionFieldDefinition
-import domain.ApiSubscriptionFields.SaveSubscriptionFieldsAccessDeniedResponse
-import domain.ApiSubscriptionFields.SaveSubscriptionFieldsAccessDeniedResponse
 import service.SubscriptionFieldsService.ValidateAgainstRole
+import domain.ApiSubscriptionFields.SubscriptionFieldDefinition
 
 object ManageSubscriptions {
 
@@ -170,7 +168,7 @@ class ManageSubscriptions @Inject() (
                                            (implicit hc: HeaderCarrier, request: ApplicationRequest[_]): Future[Result] = {
 
     def handleValidForm(validForm: EditApiConfigurationFormData) = {
-      def saveFields(validForm: EditApiConfigurationFormData)(implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
+      def saveFields(validForm: EditApiConfigurationFormData)(implicit hc: HeaderCarrier): Future[ServiceSaveSubscriptionFieldsResponse] = {
         if (validForm.fields.nonEmpty) {
           val subscriptionLookup = subscriptionFieldDefinitions.map(d => (d.name -> d)).toMap
 
@@ -195,7 +193,6 @@ class ManageSubscriptions @Inject() (
           val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
           val vm = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
           BadRequest(validationFailureView(vm))
-
         case SaveSubscriptionFieldsAccessDeniedResponse => Forbidden(errorHandler.badRequestTemplate)
       }
     }

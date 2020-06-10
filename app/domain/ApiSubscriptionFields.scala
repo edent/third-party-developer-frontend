@@ -61,10 +61,12 @@ object ApiSubscriptionFields {
     implicit val format: Format[SubscriptionFieldsPutRequest] =
       Json.format[SubscriptionFieldsPutRequest]
   }
+
+  sealed trait ServiceSaveSubscriptionFieldsResponse
+  sealed trait ConnectorSaveSubscriptionFieldsResponse extends ServiceSaveSubscriptionFieldsResponse
   
-// TODO Split this trait into a service and a connector traits
-  sealed trait SaveSubscriptionFieldsResponse
-  case object SaveSubscriptionFieldsSuccessResponse extends SaveSubscriptionFieldsResponse
-  case class SaveSubscriptionFieldsFailureResponse(fieldErrors : Map[String, String]) extends SaveSubscriptionFieldsResponse
-  case object SaveSubscriptionFieldsAccessDeniedResponse extends SaveSubscriptionFieldsResponse
+  case object SaveSubscriptionFieldsSuccessResponse extends ConnectorSaveSubscriptionFieldsResponse
+  case class SaveSubscriptionFieldsFailureResponse(fieldErrors : Map[String, String]) extends ConnectorSaveSubscriptionFieldsResponse
+  
+  case object SaveSubscriptionFieldsAccessDeniedResponse extends ServiceSaveSubscriptionFieldsResponse
 }

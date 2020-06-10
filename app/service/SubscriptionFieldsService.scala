@@ -29,9 +29,7 @@ import domain.DevhubAccessLevel.Developer
 import domain.DevhubAccessLevel
 import domain.Role.ADMINISTRATOR
 import domain.Role.DEVELOPER
-import service.SubscriptionFieldsService.AccessValidation
-import service.SubscriptionFieldsService.ValidateAgainstRole
-import service.SubscriptionFieldsService.SkipRoleValidation
+import service.SubscriptionFieldsService._
 
 @Singleton
 class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(implicit val ec: ExecutionContext) {
@@ -48,7 +46,7 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
   }
 
   def saveFieldValues(accessValidation : AccessValidation, application: Application, apiContext: String, apiVersion: String, newValues : Seq[SubscriptionFieldValue])
-                        (implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
+                        (implicit hc: HeaderCarrier): Future[ServiceSaveSubscriptionFieldsResponse] = {
 
     def allowedToWriteToAllValues(values: Seq[SubscriptionFieldValue], devhubAccessLevel: DevhubAccessLevel) : Boolean = {
       values.forall(_.definition.access.devhub.satisfiesWrite(devhubAccessLevel))
@@ -68,7 +66,12 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
 
       val fieldsToSave = newValues.map(v => (v.definition.name -> v.value)).toMap
 
-      connector.saveFieldValues(application.clientId, apiContext, apiVersion, fieldsToSave)
+      connector
+        .saveFieldValues(application.clientId, apiContext, apiVersion, fieldsToSave)
+        // .map(r => r match {
+        //   case x: SaveSubscriptionFieldsFailureResponse2 => x
+        //   // case y: SaveSubscriptionFieldsSuccessResponse2 => y
+        // })
     } else { 
       Future.successful(SaveSubscriptionFieldsAccessDeniedResponse)
     }
@@ -101,7 +104,7 @@ object SubscriptionFieldsService {
                              (implicit hc: HeaderCarrier): Future[Seq[SubscriptionFieldDefinition]]
 
     def saveFieldValues(clientId: String, apiContext: String, apiVersion: String, fields: Fields)
-                       (implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse]
+                       (implicit hc: HeaderCarrier): Future[ConnectorSaveSubscriptionFieldsResponse]
 
     def deleteFieldValues(clientId: String, apiContext: String, apiVersion: String)(implicit hc: HeaderCarrier): Future[FieldsDeleteResult]
   }

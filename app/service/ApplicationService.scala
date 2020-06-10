@@ -22,7 +22,7 @@ import config.ApplicationConfig
 import connectors._
 import domain._
 import domain.APIStatus._
-import domain.ApiSubscriptionFields.{SubscriptionFieldDefinition, SubscriptionFieldValue, SubscriptionFieldsWrapper}
+import domain.ApiSubscriptionFields._
 import domain.Environment.{PRODUCTION, SANDBOX}
 import javax.inject.{Inject, Singleton}
 import service.AuditAction.{AccountDeletionRequested, ApplicationDeletionRequested, Remove2SVRequested, UserLogoutSurveyCompleted}
@@ -33,8 +33,6 @@ import uk.gov.hmrc.time.DateTimeUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 import cats.data.NonEmptyList
-import domain.ApiSubscriptionFields.SaveSubscriptionFieldsSuccessResponse
-import domain.ApiSubscriptionFields.SaveSubscriptionFieldsFailureResponse
 import service.SubscriptionFieldsService.SkipRoleValidation
 
 @Singleton
