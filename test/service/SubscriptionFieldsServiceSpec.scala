@@ -40,6 +40,8 @@ import domain.AccessRequirements
 import domain.DevhubAccessRequirements
 import domain.DevhubAccessRequirement.NoOne
 import domain.Role
+import service.SubscriptionFieldsService.ValidateAgainstRole
+import service.SubscriptionFieldsService.SkipRoleValidation
 
 class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with MockitoSugar with SubscriptionsBuilder {
 
@@ -147,7 +149,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
     }
 
     "save the fields2" in new Setup {
-      val developerRole  = Role.DEVELOPER
+      val developerRole  = ValidateAgainstRole(Role.DEVELOPER)
       
       val access = AccessRequirements.Default
 
@@ -177,13 +179,12 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
 
      "save the fields fails with access denied" in new Setup {
     
-      val developerRole = Role.DEVELOPER
+      val developerRole = ValidateAgainstRole(Role.DEVELOPER)
       
       val access = AccessRequirements(devhub = DevhubAccessRequirements(NoOne, NoOne))
 
       val definition = buildSubscriptionFieldValue("field-denied", accessRequirements = access).definition
 
-      // private val fieldsValues = Map("field-allowed" -> "val001", value.definition.name -> "val002")
       val newValues = Seq(SubscriptionFieldValue(definition, "newValue"))
 
       val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, newValues))
@@ -192,6 +193,33 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
 
       verify(mockSubscriptionFieldsConnector, never())
         .saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier])
+    }
+
+     "save the fields skipping role validation" in new Setup {
+      val access = AccessRequirements.Default
+
+      val definition = buildSubscriptionFieldValue("field-write-allowed", accessRequirements = access).definition
+      
+      val newValue = SubscriptionFieldValue(definition, "newValue")
+
+      given(mockSubscriptionFieldsConnector.saveFieldValues(
+          any(),
+          any(),
+          any(),
+          any())(any[HeaderCarrier]))
+        .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+
+      val result = await(underTest.saveFieldValues2(SkipRoleValidation, application, apiContext, apiVersion, Seq(newValue)))
+
+      result shouldBe SaveSubscriptionFieldsSuccessResponse
+
+      val expectedField = Map(definition.name -> newValue.value)
+      verify(mockSubscriptionFieldsConnector)
+        .saveFieldValues(
+          meq(clientId),
+          meq(apiContext),
+          meq(apiVersion),
+          meq(expectedField))(any[HeaderCarrier])
     }
   }
 }

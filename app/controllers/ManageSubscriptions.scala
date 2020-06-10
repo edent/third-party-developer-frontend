@@ -39,6 +39,7 @@ import domain.SaveSubsFieldsPageMode
 import domain.ApiSubscriptionFields.SubscriptionFieldDefinition
 import domain.ApiSubscriptionFields.SaveSubscriptionFieldsAccessDeniedResponse
 import domain.ApiSubscriptionFields.SaveSubscriptionFieldsAccessDeniedResponse
+import service.SubscriptionFieldsService.ValidateAgainstRole
 
 object ManageSubscriptions {
 
@@ -182,7 +183,7 @@ class ManageSubscriptions @Inject() (
           })
 
           subFieldsService
-            .saveFieldValues2(request.role, request.application, apiContext, apiVersion, valuesToSave)
+            .saveFieldValues2(ValidateAgainstRole(request.role), request.application, apiContext, apiVersion, valuesToSave)
         } else {
           Future.successful(SaveSubscriptionFieldsSuccessResponse)
         }

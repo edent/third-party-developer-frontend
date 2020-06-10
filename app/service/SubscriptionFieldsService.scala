@@ -29,6 +29,9 @@ import domain.DevhubAccessLevel.Developer
 import domain.DevhubAccessLevel
 import domain.Role.ADMINISTRATOR
 import domain.Role.DEVELOPER
+import service.SubscriptionFieldsService.AccessValidation
+import service.SubscriptionFieldsService.ValidateAgainstRole
+import service.SubscriptionFieldsService.SkipRoleValidation
 
 @Singleton
 class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(implicit val ec: ExecutionContext) {
@@ -52,16 +55,23 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
     connector.saveFieldValues(application.clientId, apiContext, apiVersion, fields)
   }
 
-  def saveFieldValues2(role: Role, application: Application, apiContext: String, apiVersion: String, newValues : Seq[SubscriptionFieldValue])
+  def saveFieldValues2(accessValidation : AccessValidation, application: Application, apiContext: String, apiVersion: String, newValues : Seq[SubscriptionFieldValue])
                         (implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
-    
-    val devhubAccessLevel = DevhubAccessLevel.fromRole(role)
 
     def allowedToWriteToAllValues(values: Seq[SubscriptionFieldValue], devhubAccessLevel: DevhubAccessLevel) : Boolean = {
       values.forall(_.definition.access.devhub.satisfiesWrite(devhubAccessLevel))
     }
 
-    if (allowedToWriteToAllValues(newValues,devhubAccessLevel)) {
+    def isRoleAllowed : Boolean = {
+      accessValidation match {
+        case ValidateAgainstRole(role) =>
+          val devhubAccessLevel = DevhubAccessLevel.fromRole(role)
+           allowedToWriteToAllValues(newValues,devhubAccessLevel)
+        case SkipRoleValidation => true
+      }
+    }
+
+    if (isRoleAllowed) {
       val connector = connectorsWrapper.forEnvironment(application.deployedTo).apiSubscriptionFieldsConnector
 
       val fieldsToSave = newValues.map(v => (v.definition.name -> v.value)).toMap
@@ -109,4 +119,8 @@ object SubscriptionFieldsService {
   object DefinitionsByApiVersion {
     val empty = Map.empty[APIIdentifier, Seq[SubscriptionFieldDefinition]]
   }
+
+  sealed trait AccessValidation 
+  case class ValidateAgainstRole(role: Role) extends AccessValidation
+  case object SkipRoleValidation extends AccessValidation
 }

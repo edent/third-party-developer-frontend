@@ -36,6 +36,7 @@ import utils.WithCSRFAddToken
 import utils.WithLoggedInSession._
 
 import scala.concurrent.Future
+import service.SubscriptionFieldsService.ValidateAgainstRole
 
 class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken with SubscriptionTestHelperSugar {
   val failedNoApp: Future[Nothing] = Future.failed(new ApplicationNotFound)
@@ -283,7 +284,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
           verify(mockSubscriptionFieldsService)
             .saveFieldValues2(
-              eqTo(role),
+              eqTo(ValidateAgainstRole(role)),
               eqTo(application),
               eqTo(apiSubscriptionStatus.context),
               eqTo(apiSubscriptionStatus.apiVersion.version),
