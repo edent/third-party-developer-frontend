@@ -58,6 +58,8 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
+  val role = Role.ADMINISTRATOR
+
   val application: Application = Application(
     appId,
     clientId,
@@ -66,7 +68,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
     DateTimeUtils.now,
     Environment.SANDBOX,
     Some("Description 1"),
-    Set(Collaborator(loggedInUser.email, Role.ADMINISTRATOR)),
+    Set(Collaborator(loggedInUser.email, role)),
     state = ApplicationState.production(loggedInUser.email, ""),
     access = Standard(
       redirectUris = Seq("https://red1", "https://red2"),
@@ -262,7 +264,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
           givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-          when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier]()))
+          when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
             .thenReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
 
           private val loggedInWithFormValues = editFormPostRequest(subSubscriptionValue.definition.name,newSubscriptionValue)
@@ -277,10 +279,11 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
           status(result) shouldBe SEE_OTHER
           redirectLocation(result) shouldBe Some(expectedRedirectUrl)
 
-          val expectedFields: Fields = Map(subSubscriptionValue.definition.name -> newSubscriptionValue)
+          val expectedFields = Seq(SubscriptionFieldValue(subSubscriptionValue.definition, newSubscriptionValue))
 
           verify(mockSubscriptionFieldsService)
-            .saveFieldValues(
+            .saveFieldValues2(
+              eqTo(role),
               eqTo(application),
               eqTo(apiSubscriptionStatus.context),
               eqTo(apiSubscriptionStatus.apiVersion.version),
@@ -294,7 +297,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
           givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-          when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier]()))
+          when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
             .thenReturn(Future.successful(SaveSubscriptionFieldsFailureResponse(fieldErrors)))
 
           private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
@@ -312,6 +315,29 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
           assertIsApiConfigureEditPage(result)
 
           bodyOf(result) should include("apiName is invalid error message")
+        }
+
+        s"save action fails with access deinied and shows error message in mode [$mode]" in new ManageSubscriptionsSetup {
+          val apiSubscriptionStatus: APISubscriptionStatus = exampleSubscriptionWithFields("api1", 1)
+          val newSubscriptionValue = "my invalid value"
+          val fieldErrors = Map("apiName" -> "apiName is invalid error message")
+
+          givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
+
+          when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+            .thenReturn(Future.successful(SaveSubscriptionFieldsAccessDeniedResponse))
+
+          private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
+
+          private val loggedInWithFormValues = editFormPostRequest(subSubscriptionValue.definition.name,newSubscriptionValue)
+
+          private val result = await(addToken(manageSubscriptionController.saveSubscriptionFields(
+              appId,
+              apiSubscriptionStatus.context,
+              apiSubscriptionStatus.apiVersion.version,
+              mode))(loggedInWithFormValues))
+
+          status(result) shouldBe FORBIDDEN
         }
 
         s"return to the login page when the user attempts to edit subscription configuration in mode [$mode]" in new ManageSubscriptionsSetup {

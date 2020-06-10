@@ -37,6 +37,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.Future.successful
 import domain.SaveSubsFieldsPageMode
 import domain.ApiSubscriptionFields.SubscriptionFieldDefinition
+import domain.ApiSubscriptionFields.SaveSubscriptionFieldsAccessDeniedResponse
+import domain.ApiSubscriptionFields.SaveSubscriptionFieldsAccessDeniedResponse
 
 object ManageSubscriptions {
 
@@ -208,7 +210,6 @@ class ManageSubscriptions @Inject() (
     def handleValidForm(validForm: EditApiConfigurationFormData) = {
       def saveFields(validForm: EditApiConfigurationFormData)(implicit hc: HeaderCarrier): Future[SaveSubscriptionFieldsResponse] = {
         if (validForm.fields.nonEmpty) {
-          println("*** Saving using new stuff")
           val subscriptionLookup = subscriptionFieldDefinitions.map(d => (d.name -> d)).toMap
 
           val valuesToSave : Seq[SubscriptionFieldValue] = validForm.fields.map(formField => {
@@ -219,9 +220,8 @@ class ManageSubscriptions @Inject() (
             SubscriptionFieldValue(definition , newValue)
           })
 
-          subFieldsService.saveFieldValues2(request.role, request.application, apiContext, apiVersion, valuesToSave)
-          // TODO: Something todo with handing an error response? i.e. Forbidden
-        
+          subFieldsService
+            .saveFieldValues2(request.role, request.application, apiContext, apiVersion, valuesToSave)
         } else {
           Future.successful(SaveSubscriptionFieldsSuccessResponse)
         }
@@ -232,8 +232,9 @@ class ManageSubscriptions @Inject() (
         case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>
           val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
           val vm = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
-          
           BadRequest(validationFailureView(vm))
+
+        case SaveSubscriptionFieldsAccessDeniedResponse => Forbidden(errorHandler.badRequestTemplate)
       }
     }
 
@@ -245,7 +246,6 @@ class ManageSubscriptions @Inject() (
 
     EditApiConfigurationFormData.form.bindFromRequest.fold(handleInvalidForm, handleValidForm)
   }
-
 
   def subscriptionConfigurationStart(applicationId: String): Action[AnyContent] =
     subFieldsDefinitionsExistAction(applicationId,
@@ -281,23 +281,44 @@ class ManageSubscriptions @Inject() (
       ))
     }
 
-  def subscriptionConfigurationPagePost(applicationId: String, pageNumber: Int) : Action[AnyContent] =
-    subFieldsDefinitionsExistActionWithPageNumber(applicationId, pageNumber) { definitionsRequest: ApplicationWithSubscriptionFieldPage[AnyContent] =>
+  // def subscriptionConfigurationPagePost(applicationId: String, pageNumber: Int) : Action[AnyContent] =
+  //   subFieldsDefinitionsExistActionWithPageNumber(applicationId, pageNumber) { definitionsRequest: ApplicationWithSubscriptionFieldPage[AnyContent] =>
 
-      implicit val applicationRequest: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
+  //     implicit val applicationRequest: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
 
-      val successRedirectUrl = routes.ManageSubscriptions.subscriptionConfigurationStepPage(applicationId,  pageNumber)
+  //     val successRedirectUrl = routes.ManageSubscriptions.subscriptionConfigurationStepPage(applicationId,  pageNumber)
 
-      val apiSubscription = definitionsRequest.apiSubscriptionStatus
+  //     val apiSubscription = definitionsRequest.apiSubscriptionStatus
 
-      subscriptionConfigurationSave(
-        definitionsRequest.apiDetails.context,
-        definitionsRequest.apiDetails.version,
-        successRedirectUrl,
-        viewModel => {
-          views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, apiSubscription, viewModel)
-        })
-    }
+  //     val subscriptionFieldDefinitions = apiSubscription.fields.fields.map(value => value.definition)
+
+  //     subscriptionConfigurationSave2(
+  //       definitionsRequest.apiDetails.context,
+  //       definitionsRequest.apiDetails.version,
+  //       successRedirectUrl,
+  //       subscriptionFieldDefinitions,
+  //       viewModel => {
+  //         views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, apiSubscription, viewModel)
+  //       })
+  //   }
+
+ def subscriptionConfigurationPagePost(applicationId: String, pageNumber: Int) : Action[AnyContent] =
+   subFieldsDefinitionsExistActionWithPageNumber(applicationId, pageNumber) { definitionsRequest: ApplicationWithSubscriptionFieldPage[AnyContent] =>
+
+     implicit val applicationRequest: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
+
+     val successRedirectUrl = routes.ManageSubscriptions.subscriptionConfigurationStepPage(applicationId,  pageNumber)
+
+     val apiSubscription = definitionsRequest.apiSubscriptionStatus
+
+     subscriptionConfigurationSave(
+       definitionsRequest.apiDetails.context,
+       definitionsRequest.apiDetails.version,
+       successRedirectUrl,
+       viewModel => {
+         views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, apiSubscription, viewModel)
+       })
+   }
 
   def subscriptionConfigurationStepPage(applicationId: String, pageNumber: Int): Action[AnyContent] = {
     def doEndOfJourneyRedirect(application: Application)(implicit hc: HeaderCarrier) = {
