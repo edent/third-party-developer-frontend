@@ -146,7 +146,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
           any())(any[HeaderCarrier]))
         .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
 
-      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, Seq(newValue)))
+      val result = await(underTest.saveFieldValues(developerRole, application, apiContext, apiVersion, Seq(newValue)))
 
       result shouldBe SaveSubscriptionFieldsSuccessResponse
 
@@ -169,7 +169,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
 
       val newValues = Seq(SubscriptionFieldValue(definition, "newValue"))
 
-      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, newValues))
+      val result = await(underTest.saveFieldValues(developerRole, application, apiContext, apiVersion, newValues))
 
       result shouldBe SaveSubscriptionFieldsAccessDeniedResponse
 
@@ -191,7 +191,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
           any())(any[HeaderCarrier]))
         .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
 
-      val result = await(underTest.saveFieldValues2(SkipRoleValidation, application, apiContext, apiVersion, Seq(newValue)))
+      val result = await(underTest.saveFieldValues(SkipRoleValidation, application, apiContext, apiVersion, Seq(newValue)))
 
       result shouldBe SaveSubscriptionFieldsSuccessResponse
 

@@ -62,9 +62,9 @@ object ApiSubscriptionFields {
       Json.format[SubscriptionFieldsPutRequest]
   }
   
-//TODO new failure for access denied
+// TODO Split this trait into a service and a connector traits
   sealed trait SaveSubscriptionFieldsResponse
   case object SaveSubscriptionFieldsSuccessResponse extends SaveSubscriptionFieldsResponse
   case class SaveSubscriptionFieldsFailureResponse(fieldErrors : Map[String, String]) extends SaveSubscriptionFieldsResponse
-  case object SaveSubscriptionFieldsAccessDeniedResponse extends SaveSubscriptionFieldsResponse // Move to own trait
+  case object SaveSubscriptionFieldsAccessDeniedResponse extends SaveSubscriptionFieldsResponse
 }

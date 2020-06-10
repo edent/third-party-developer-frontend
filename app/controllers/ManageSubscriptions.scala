@@ -183,7 +183,7 @@ class ManageSubscriptions @Inject() (
           })
 
           subFieldsService
-            .saveFieldValues2(ValidateAgainstRole(request.role), request.application, apiContext, apiVersion, valuesToSave)
+            .saveFieldValues(ValidateAgainstRole(request.role), request.application, apiContext, apiVersion, valuesToSave)
         } else {
           Future.successful(SaveSubscriptionFieldsSuccessResponse)
         }

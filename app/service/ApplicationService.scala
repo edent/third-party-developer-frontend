@@ -120,7 +120,7 @@ class ApplicationService @Inject() (
         .flatMap(values => {
           if (!values.exists(field => field.value != "")) {
             subscriptionFieldsService
-              .saveFieldValues2(SkipRoleValidation, application, context, version, createEmptyFieldValues(fieldDefinitions))
+              .saveFieldValues(SkipRoleValidation, application, context, version, createEmptyFieldValues(fieldDefinitions))
               .map({
                 case SaveSubscriptionFieldsSuccessResponse => HasSucceeded
                 case error => {
