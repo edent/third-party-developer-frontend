@@ -140,6 +140,10 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
       for(field <- fields){
         bodyOf(result) should include(field.definition.description)
         bodyOf(result) should include(field.definition.hint)
+        
+        if (!field.definition.access.devhub.satisfiesWrite(DevhubAccessLevel.Admininstator)){
+          bodyOf(result) should include("disabled")
+        }
       }
     }
 
@@ -242,7 +246,16 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
       
       "the editApiMetadataPage is called it" should {
         "renders the edit subscription page" in new ManageSubscriptionsSetup {
-          val apiSubscriptionStatus: APISubscriptionStatus = exampleSubscriptionWithFields("api1", 2)
+          val whoCanWrite = NoOne
+          val accessDenied = AccessRequirements(devhub = DevhubAccessRequirements(Anyone, whoCanWrite))
+
+          val wrapper = buildSubscriptionFieldsWrapper(application, Seq(buildSubscriptionFieldValue("field-name", Some("old-value"), accessDenied)))
+          
+          val apiSubscriptionStatus: APISubscriptionStatus = exampleSubscriptionWithFields("api1", 1).copy(fields = wrapper)
+
+          private val readonlySubSubscriptionValue  = apiSubscriptionStatus.fields.fields(0)
+          
+          givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
           val subsData = Seq(apiSubscriptionStatus)
 
