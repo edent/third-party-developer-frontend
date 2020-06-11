@@ -44,8 +44,6 @@
 
         @fieldError(viewModel.form.errors, formFieldName)
         
-        <p>CanWrite :@{field.canWrite}</p>
-        
         @if(field.canWrite){
           <input type="hidden" name="fields[@idx].name" value="@formFieldName">
         }

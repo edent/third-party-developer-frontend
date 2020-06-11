@@ -56,6 +56,8 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
       accessValidation match {
         case ValidateAgainstRole(role) =>
           val devhubAccessLevel = DevhubAccessLevel.fromRole(role)
+
+          // TODO: This is the problem
            allowedToWriteToAllValues(newValues,devhubAccessLevel)
         case SkipRoleValidation => true
       }
