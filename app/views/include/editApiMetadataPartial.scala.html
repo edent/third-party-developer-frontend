@@ -25,8 +25,6 @@
 @(
   app: Application,
   viewModel: EditApiConfigurationViewModel,
-  apiSubscription : APISubscriptionStatusWithSubscriptionFields,
-  form: Form[EditApiConfigurationFormData],
   formPostUrl: Call,
   skipLink : Option[Call] = None
 )(
@@ -39,28 +37,32 @@
 
  @helper.CSRF.formField
 
- @for((field, idx) <- viewModel.fields.zipWithIndex){ 
-  @defining(field.formFieldData.name) { formFieldId =>
-      <div class="form-group @if(form.errors(formFieldId).nonEmpty){form-group-error}">
+ @helper.repeatWithIndex(viewModel.form("fields")) { (formField, idx) =>
+  @defining(viewModel.fields.toList(idx)) { field => 
+    @defining(formField("name").value.getOrElse("")) { formFieldName => 
 
-        @fieldError(form.errors, formFieldId)
 
-        <input type="hidden" name="fields[@idx].name" value="@field.formFieldData.name">
+      <div class="form-group @if(viewModel.form.errors(formFieldName).nonEmpty){form-group-error}">
 
-        <label class="form-label" for="@formFieldId">
+        @fieldError(viewModel.form.errors, formFieldName)
+
+        <input type="hidden" name="fields[@idx].name" value="@formFieldName">
+
+        <label class="form-label" for="@formFieldName">
           @{field.description}
         </label>
         <span class="form-hint">@{field.hint}</span>
 
         <input type="text"
           name="fields[@idx].value"
-          value="@{field.formFieldData.value}"
-          class="form-input input--medium @if(form.errors(formFieldId).nonEmpty){form-control-error}"
-          id="@formFieldId" />
+          value="@formField("value").value"
+          class="form-input input--medium @if(viewModel.form.errors(formFieldName).nonEmpty){form-control-error}"
+          id="@formFieldName" />
 
       </div>
-    } 
-  }
+    }
+  } 
+}
 
  <div class="form-group">
   <button id="@{IdFormatter.identifier(viewModel.apiContext, viewModel.apiVersion)}-submit" class="button submit-button" type="submit">Save changes</button>

@@ -80,7 +80,15 @@ object ManageSubscriptions {
 
   // TODO: Add the EditApiConfigurationFormData for here, and remove the SubscriptionFieldViewModel.formFieldData
   // In the view go back to zipping the two lists together.
-  case class EditApiConfigurationViewModel(apiName: String, apiVersion: String, apiContext: String, displayedStatus: String, fields: Seq[SubscriptionFieldViewModel])
+  case class EditApiConfigurationViewModel(
+    apiName: String,
+    apiVersion: String,
+    apiContext: String,
+    displayedStatus: String,
+    fields: Seq[SubscriptionFieldViewModel],
+    form: Form[EditApiConfigurationFormData])
+
+  // TODO : remove formFieldData
   case class SubscriptionFieldViewModel(description: String, hint: String, formFieldData: EditSubscriptionValueFormData)
  
   case class EditApiConfigurationFormData(fields: List[EditSubscriptionValueFormData])
@@ -99,6 +107,7 @@ object ManageSubscriptions {
     )
   }
 
+  // TODO: Rename 'toFormSomething'
   def toViewModel(in: APISubscriptionStatusWithSubscriptionFields): Form[EditApiConfigurationFormData] = {
     val data = toForm(in)
     EditApiConfigurationFormData.form.fill(data)
@@ -145,11 +154,11 @@ class ManageSubscriptions @Inject() (
     }
   
   // TODO: Move to companion
-  def toEditViewModel(apiSubscription : APISubscriptionStatusWithSubscriptionFields): EditApiConfigurationViewModel = {
+  def toEditViewModel(apiSubscription : APISubscriptionStatusWithSubscriptionFields, form : Form[EditApiConfigurationFormData]): EditApiConfigurationViewModel = {
      val fieldsViewModel : Seq[SubscriptionFieldViewModel] = apiSubscription.fields.fields
         .map(field => SubscriptionFieldViewModel(field.definition.description, field.definition.hint, EditSubscriptionValueFormData(field.definition.name, field.value)))
       
-      EditApiConfigurationViewModel(apiSubscription.name, apiSubscription.apiVersion.version, apiSubscription.context, apiSubscription.apiVersion.displayedStatus, fieldsViewModel)
+      EditApiConfigurationViewModel(apiSubscription.name, apiSubscription.apiVersion.version, apiSubscription.context, apiSubscription.apiVersion.displayedStatus, fieldsViewModel, form)
   }
 
   def editApiMetadataPage(applicationId: String, context: String, version: String, mode: SaveSubsFieldsPageMode): Action[AnyContent] =
@@ -159,7 +168,9 @@ class ManageSubscriptions @Inject() (
 
       val apiSubscription : APISubscriptionStatusWithSubscriptionFields =  definitionsRequest.apiSubscription
   
-      val viewModel = toEditViewModel(apiSubscription)
+      val form : Form[EditApiConfigurationFormData] = toViewModel(apiSubscription)
+
+      val viewModel = toEditViewModel(apiSubscription, form)
 
       // TODO: From the model return if it's read only or not
 
@@ -183,12 +194,15 @@ class ManageSubscriptions @Inject() (
 
     val apiSubscription = definitionsRequest.apiSubscription
 
-    val viewModel = toEditViewModel(apiSubscription)
-
+    
     val subscriptionFieldDefinitions = apiSubscription.fields.fields.map(value => value.definition)
 
-    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, subscriptionFieldDefinitions, (form : Form[EditApiConfigurationFormData])=>
-      editApiMetadata(definitionsRequest.applicationRequest.application,viewModel, apiSubscription, form, mode)
+    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, subscriptionFieldDefinitions, (formWithErrors : Form[EditApiConfigurationFormData])=>{
+
+        val viewModel = toEditViewModel(apiSubscription, formWithErrors)
+
+        editApiMetadata(definitionsRequest.applicationRequest.application, viewModel, apiSubscription, formWithErrors, mode)
+      }
     )
   }
 
@@ -223,8 +237,8 @@ class ManageSubscriptions @Inject() (
         case SaveSubscriptionFieldsSuccessResponse => Redirect(successRedirect)
         case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>
           val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
-          val vm = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
-          BadRequest(validationFailureView(vm))
+          val formWithErrors  = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
+          BadRequest(validationFailureView(formWithErrors))
         case SaveSubscriptionFieldsAccessDeniedResponse => Forbidden(errorHandler.badRequestTemplate)
       }
     }
