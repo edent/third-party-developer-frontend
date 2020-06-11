@@ -24,7 +24,7 @@ import domain.ApiSubscriptionFields._
 import mocks.service.{ApplicationServiceMock, SessionServiceMock}
 import org.joda.time.DateTimeZone
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}
-import org.mockito.Mockito.{verify, when}
+import org.mockito.Mockito.{verify, when, never}
 import play.api.mvc.{AnyContentAsEmpty, AnyContentAsFormUrlEncoded, Result}
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
@@ -37,6 +37,8 @@ import utils.WithLoggedInSession._
 
 import scala.concurrent.Future
 import service.SubscriptionFieldsService.ValidateAgainstRole
+import domain.DevhubAccessRequirement.NoOne
+import domain.DevhubAccessRequirement.Anyone
 
 class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken with SubscriptionTestHelperSugar {
   val failedNoApp: Future[Nothing] = Future.failed(new ApplicationNotFound)
@@ -122,13 +124,8 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
     def editFormPostRequest(fieldName: String, fieldValue: String): FakeRequest[AnyContentAsFormUrlEncoded] = {
       loggedInRequest
-        .withFormUrlEncodedBody("apiName" -> "",
-          "displayedStatus" -> "",
+        .withFormUrlEncodedBody(
           "fields[0].name" -> fieldName,
-          "fields[0].description" -> "",
-          "fields[0].shortDescription" -> "",
-          "fields[0].hint" -> "",
-          "fields[0].type" -> "",
           "fields[0].value" -> fieldValue)
     }
 
@@ -302,6 +299,87 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
                 eqTo(apiSubscriptionStatus.context),
                 eqTo(apiSubscriptionStatus.apiVersion.version),
                 eqTo(expectedFields))(any[HeaderCarrier]())
+          }
+
+          s"save action saves valid subscription field values in mode [$mode] and with a read only field" in new ManageSubscriptionsSetup {
+            val apiSubscriptionStatus: APISubscriptionStatus = exampleSubscriptionWithFields("api1", 2)
+
+            private val readonlySubSubscriptionValue  = apiSubscriptionStatus.fields.fields(0)
+            private val writableSubSubscriptionValue  = apiSubscriptionStatus.fields.fields(1)
+
+            givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
+
+            when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+              .thenReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+
+            val newSubscriptionValue = "new value"
+
+            private val loggedInWithFormValues = loggedInRequest.withFormUrlEncodedBody(
+              "fields[1].name" -> writableSubSubscriptionValue.definition.name,
+              "fields[1].value" -> newSubscriptionValue
+            )
+
+            private val result: Result =
+              await(addToken(manageSubscriptionController.saveSubscriptionFields(
+                appId,
+                apiSubscriptionStatus.context,
+                apiSubscriptionStatus.apiVersion.version,
+                mode))(loggedInWithFormValues))
+
+            status(result) shouldBe SEE_OTHER
+            redirectLocation(result) shouldBe Some(expectedRedirectUrl)
+
+            val expectedFields = Seq(
+              readonlySubSubscriptionValue,
+              SubscriptionFieldValue(writableSubSubscriptionValue.definition, newSubscriptionValue))
+
+            verify(mockSubscriptionFieldsService)
+              .saveFieldValues(
+                eqTo(ValidateAgainstRole(role)),
+                eqTo(application),
+                eqTo(apiSubscriptionStatus.context),
+                eqTo(apiSubscriptionStatus.apiVersion.version),
+                eqTo(expectedFields))(any[HeaderCarrier]())
+          }
+
+          s"save action saves valid subscription field values in mode [$mode] fails and with a read only field is passed in by a bad actor" in new ManageSubscriptionsSetup {
+            val whoCanWrite = NoOne
+            val accessDenied = AccessRequirements(devhub = DevhubAccessRequirements(Anyone, whoCanWrite))
+
+            val wrapper = buildSubscriptionFieldsWrapper(application, Seq(buildSubscriptionFieldValue("field-name", Some("old-value"), accessDenied)))
+            
+            val apiSubscriptionStatus: APISubscriptionStatus = exampleSubscriptionWithFields("api1", 1).copy(fields = wrapper)
+
+            private val readonlySubSubscriptionValue  = apiSubscriptionStatus.fields.fields(0)
+            
+            givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
+
+            when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+              .thenReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+
+            val newSubscriptionValue = "illegal new value"
+
+            private val loggedInWithFormValues = loggedInRequest.withFormUrlEncodedBody(
+              "fields[0].name" -> readonlySubSubscriptionValue.definition.name,
+              "fields[0].value" -> newSubscriptionValue
+            )
+
+            private val result: Result =
+              await(addToken(manageSubscriptionController.saveSubscriptionFields(
+                appId,
+                apiSubscriptionStatus.context,
+                apiSubscriptionStatus.apiVersion.version,
+                mode))(loggedInWithFormValues))
+
+            status(result) shouldBe FORBIDDEN
+
+            verify(mockSubscriptionFieldsService, never())
+              .saveFieldValues(
+                any(),
+                any(),
+                any(),
+                any(),
+                any())(any[HeaderCarrier]())
           }
           
           s"save action fails validation and shows error message in mode [$mode]" in new ManageSubscriptionsSetup {
