@@ -162,7 +162,7 @@ class ManageSubscriptions @Inject() (
   
       val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, toFormData(apiSubscription))
 
-      successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, viewModel, apiSubscription, toFormData(apiSubscription), mode))) 
+      successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, viewModel, mode))) 
     }
 
   def saveSubscriptionFields(applicationId: String,
@@ -188,7 +188,7 @@ class ManageSubscriptions @Inject() (
 
         val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, formWithErrors)
 
-        editApiMetadata(definitionsRequest.applicationRequest.application, viewModel, apiSubscription, formWithErrors, mode)
+        editApiMetadata(definitionsRequest.applicationRequest.application, viewModel, mode)
       }
     )
   }
@@ -264,12 +264,13 @@ class ManageSubscriptions @Inject() (
       implicit val appRQ: ApplicationRequest[AnyContent] = definitionsRequest.applicationRequest
 
       val apiSubscription = definitionsRequest.apiSubscriptionStatus
+    
+      val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, toFormData(apiSubscription))
 
       Future.successful(Ok(views.html.createJourney.subscriptionConfigurationPage(
         definitionsRequest.applicationRequest.application,
         pageNumber,
-        apiSubscription,
-        toFormData(definitionsRequest.apiSubscriptionStatus))
+        viewModel)
       ))
     }
 
@@ -289,8 +290,10 @@ class ManageSubscriptions @Inject() (
         definitionsRequest.apiDetails.version,
         successRedirectUrl,
         subscriptionFieldDefinitions,
-        viewModel => {
-          views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, apiSubscription, viewModel)
+        errorFormData => {
+          val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, errorFormData)
+
+          views.html.createJourney.subscriptionConfigurationPage(definitionsRequest.applicationRequest.application, pageNumber, viewModel)
         })
     }
 
