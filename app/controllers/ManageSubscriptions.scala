@@ -218,32 +218,26 @@ class ManageSubscriptions @Inject() (
         if (validForm.fields.nonEmpty) {
           
           val accessLevel = DevhubAccessLevel.fromRole(request.role)
-          
           val formFieldsAsMap = validForm.fields.map(field => field.name -> field.value).toMap
 
-          val eitherValuesToSave: List[Either[AccessDenied, SubscriptionFieldValue]] = subscriptionFieldValues.map(oldsubscriptionFieldValue => {
+          def toNewValue(oldsubscriptionFieldValue: SubscriptionFieldValue)(newFormValue: String) = {
+            if (oldsubscriptionFieldValue.definition.access.devhub.satisfiesWrite(accessLevel)){
+              Right(oldsubscriptionFieldValue.copy(value = newFormValue))
+            } else {
+              Left(AccessDenied())
+            }
+          }
+
+          val eitherValuesToSave = subscriptionFieldValues.map(oldsubscriptionFieldValue => 
             formFieldsAsMap.get(oldsubscriptionFieldValue.definition.name) match {
-              case Some(newFormValue) => {
-
-                val canWrite = oldsubscriptionFieldValue.definition.access.devhub.satisfiesWrite(accessLevel)
-
-                if (canWrite){
-                  Right(oldsubscriptionFieldValue.copy(value = newFormValue))
-                } else{
-                  Left(AccessDenied())
-                }
-              }
+              case Some(newFormValue) => toNewValue(oldsubscriptionFieldValue)(newFormValue)
               case None => Right(oldsubscriptionFieldValue)
             }
-          }).toList
+          )
 
-          val valuesToSave : Either[AccessDenied, List[SubscriptionFieldValue]] = eitherValuesToSave.sequence
-
-          valuesToSave match {
-            case Left(_) => Future.successful(SaveSubscriptionFieldsAccessDeniedResponse)
-            case Right(valuesToActuallySave) => subFieldsService
-              .saveFieldValues(ValidateAgainstRole(request.role), request.application, apiContext, apiVersion, valuesToActuallySave)
-          }
+          eitherValuesToSave.toList.sequence
+            .fold(accessDenied => Future.successful(SaveSubscriptionFieldsAccessDeniedResponse),
+                  values => subFieldsService.saveFieldValues(ValidateAgainstRole(request.role), request.application, apiContext, apiVersion, values))
         } else {
           Future.successful(SaveSubscriptionFieldsSuccessResponse)
         }
