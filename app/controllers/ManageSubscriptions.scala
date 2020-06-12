@@ -73,7 +73,10 @@ object ManageSubscriptions {
     apiContext: String,
     displayedStatus: String,
     fields: Seq[SubscriptionFieldViewModel],
-    form: Form[EditApiConfigurationFormData])
+    form: Form[EditApiConfigurationFormData],
+    writableFieldValues : Map[String, FormValue])
+
+  case class FormValue(playFormFieldNamePrefix: String, value: String)
 
   object EditApiConfigurationViewModel {
     def toViewModel(
@@ -85,14 +88,31 @@ object ManageSubscriptions {
           val accessLevel = DevhubAccessLevel.fromRole(role)
           val canWrite = field.definition.access.devhub.satisfiesWrite(accessLevel)
         
-          SubscriptionFieldViewModel(field.definition.description, field.definition.hint, canWrite)
+          SubscriptionFieldViewModel(field.definition.name, field.definition.description, field.definition.hint, canWrite, field.value)
         })
-      
-      EditApiConfigurationViewModel(apiSubscription.name, apiSubscription.apiVersion.version, apiSubscription.context, apiSubscription.apiVersion.displayedStatus, fieldsViewModel, form)
+    
+      // TODO: Merge with above (somehow?)
+      val writableFieldValues = fieldsViewModel
+        .filter(_.canWrite)
+        .zipWithIndex
+        .map { case(field, index) => {
+            val preFix = s"fields[$index]"
+            field.name -> FormValue(preFix, form(s"$preFix.value").value.get) // TODO: Naked get?
+          }
+        }.toMap
+        
+      EditApiConfigurationViewModel(
+        apiSubscription.name,
+        apiSubscription.apiVersion.version,
+        apiSubscription.context,
+        apiSubscription.apiVersion.displayedStatus,
+        fieldsViewModel,
+        form,
+        writableFieldValues)
     }
   }
 
-  case class SubscriptionFieldViewModel(description: String, hint: String, canWrite : Boolean)
+  case class SubscriptionFieldViewModel(name: String, description: String, hint: String, canWrite: Boolean, originalValue: String)
  
   case class EditApiConfigurationFormData(fields: List[EditSubscriptionValueFormData])
   case class EditSubscriptionValueFormData(name: String, value: String)
@@ -110,12 +130,19 @@ object ManageSubscriptions {
       )
   }
 
-  def toFormData(in: APISubscriptionStatusWithSubscriptionFields): Form[EditApiConfigurationFormData] = {
+  def toFormData(in: APISubscriptionStatusWithSubscriptionFields, role: Role): Form[EditApiConfigurationFormData] = {
     def toEditSubscriptionValueFormData(fieldValue: SubscriptionFieldValue) : EditSubscriptionValueFormData = {
       EditSubscriptionValueFormData(fieldValue.definition.name, fieldValue.value)
     }
 
-    val data = EditApiConfigurationFormData(fields = in.fields.fields.toList.map(toEditSubscriptionValueFormData(_)))
+    val formFields = in.fields.fields.toList
+      .filter(field => {
+        val accessLevel = DevhubAccessLevel.fromRole(role)
+        field.definition.access.devhub.satisfiesWrite(accessLevel)
+      })
+      .map(toEditSubscriptionValueFormData(_))
+    
+    val data = EditApiConfigurationFormData(formFields)
     EditApiConfigurationFormData.form.fill(data)
   }
 
@@ -168,7 +195,7 @@ class ManageSubscriptions @Inject() (
 
       val apiSubscription : APISubscriptionStatusWithSubscriptionFields =  definitionsRequest.apiSubscription
   
-      val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, toFormData(apiSubscription), role)
+      val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, toFormData(apiSubscription, role), role)
 
       successful(Ok(views.html.managesubscriptions.editApiMetadata(appRQ.application, viewModel, mode))) 
     }
@@ -208,49 +235,20 @@ class ManageSubscriptions @Inject() (
                                             subscriptionFieldValues: Seq[SubscriptionFieldValue],
                                             validationFailureView : Form[EditApiConfigurationFormData] => Html)
                                            (implicit hc: HeaderCarrier, request: ApplicationRequest[AnyContent]): Future[Result] = {
-    
-
 
     def handleValidForm(validForm: EditApiConfigurationFormData) = {
-      def saveFields(validForm: EditApiConfigurationFormData)(implicit hc: HeaderCarrier): Future[ServiceSaveSubscriptionFieldsResponse] = {
-        case class AccessDenied()
+      val formFieldsAsMap = validForm.fields.map(field => field.name -> field.value).toMap
 
-        if (validForm.fields.nonEmpty) {
-          
-          val accessLevel = DevhubAccessLevel.fromRole(request.role)
-          val formFieldsAsMap = validForm.fields.map(field => field.name -> field.value).toMap
-
-          def toNewValue(oldsubscriptionFieldValue: SubscriptionFieldValue)(newFormValue: String) = {
-            if (oldsubscriptionFieldValue.definition.access.devhub.satisfiesWrite(accessLevel)){
-              Right(oldsubscriptionFieldValue.copy(value = newFormValue))
-            } else {
-              Left(AccessDenied())
-            }
-          }
-
-          val eitherValuesToSave = subscriptionFieldValues.map(oldsubscriptionFieldValue => 
-            formFieldsAsMap.get(oldsubscriptionFieldValue.definition.name) match {
-              case Some(newFormValue) => toNewValue(oldsubscriptionFieldValue)(newFormValue)
-              case None => Right(oldsubscriptionFieldValue)
-            }
-          )
-
-          eitherValuesToSave.toList.sequence
-            .fold(accessDenied => Future.successful(SaveSubscriptionFieldsAccessDeniedResponse),
-                  values => subFieldsService.saveFieldValues(ValidateAgainstRole(request.role), request.application, apiContext, apiVersion, values))
-        } else {
-          Future.successful(SaveSubscriptionFieldsSuccessResponse)
-        }
-      }
-
-      saveFields(validForm) map {
-        case SaveSubscriptionFieldsSuccessResponse => Redirect(successRedirect)
-        case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>
-          val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
-          val formWithErrors  = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
-          BadRequest(validationFailureView(formWithErrors))
-        case SaveSubscriptionFieldsAccessDeniedResponse => Forbidden(errorHandler.badRequestTemplate)
-      }
+      subFieldsService
+        .saveFieldValues2(request.role, request.application, apiContext, apiVersion, subscriptionFieldValues, formFieldsAsMap )
+        .map({
+          case SaveSubscriptionFieldsSuccessResponse => Redirect(successRedirect)
+          case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>          
+            val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
+            val formWithErrors  = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
+            BadRequest(validationFailureView(formWithErrors))
+          case SaveSubscriptionFieldsAccessDeniedResponse => Forbidden(errorHandler.badRequestTemplate)
+        })
     }
 
     def handleInvalidForm(formWithErrors: Form[EditApiConfigurationFormData]) = {
@@ -290,7 +288,7 @@ class ManageSubscriptions @Inject() (
     
       val role = definitionsRequest.applicationRequest.role
 
-      val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, toFormData(apiSubscription), role)
+      val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, toFormData(apiSubscription, role), role)
 
       Future.successful(Ok(views.html.createJourney.subscriptionConfigurationPage(
         definitionsRequest.applicationRequest.application,

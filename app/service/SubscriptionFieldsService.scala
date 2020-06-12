@@ -30,6 +30,8 @@ import domain.DevhubAccessLevel
 import domain.Role.ADMINISTRATOR
 import domain.Role.DEVELOPER
 import service.SubscriptionFieldsService._
+import domain.APIDefinition
+import cats.implicits._
 
 @Singleton
 class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(implicit val ec: ExecutionContext) {
@@ -45,6 +47,7 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
     }
   }
 
+  // TODO: Delete and use v2
   def saveFieldValues(accessValidation : AccessValidation, application: Application, apiContext: String, apiVersion: String, newValues : Seq[SubscriptionFieldValue])
                         (implicit hc: HeaderCarrier): Future[ServiceSaveSubscriptionFieldsResponse] = {
 
@@ -68,15 +71,62 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
 
       val fieldsToSave = newValues.map(v => (v.definition.name -> v.value)).toMap
 
-      connector
-        .saveFieldValues(application.clientId, apiContext, apiVersion, fieldsToSave)
-        // .map(r => r match {
-        //   case x: SaveSubscriptionFieldsFailureResponse2 => x
-        //   // case y: SaveSubscriptionFieldsSuccessResponse2 => y
-        // })
+      connector.saveFieldValues(application.clientId, apiContext, apiVersion, fieldsToSave)
     } else { 
       Future.successful(SaveSubscriptionFieldsAccessDeniedResponse)
     }
+  }
+
+  // TODO : Old values or just definition
+  def saveFieldValues2( role : Role,
+                        application : Application,
+                        apiContext: String,
+                        apiVersion : String,
+                        oldValues: Seq[SubscriptionFieldValue], //TODO: Try with just he definition
+                        newValues: Map[String, String])
+                        (implicit hc: HeaderCarrier) : Future[ServiceSaveSubscriptionFieldsResponse] = {
+    case class AccessDenied()
+    
+    if (newValues.isEmpty) {
+        Future.successful(SaveSubscriptionFieldsSuccessResponse)
+    } else {
+      val accessLevel = DevhubAccessLevel.fromRole(role)
+
+      def toNewValue(oldsubscriptionFieldValue: SubscriptionFieldValue)(newFormValue: String) = {
+        if (oldsubscriptionFieldValue.definition.access.devhub.satisfiesWrite(accessLevel)){
+          Right(oldsubscriptionFieldValue.copy(value = newFormValue))
+        } else {
+          Left(AccessDenied())
+        }
+      }
+
+      val eitherValuesToSave = oldValues.map(oldsubscriptionFieldValue => 
+        newValues.get(oldsubscriptionFieldValue.definition.name) match {
+          case Some(newFormValue) => toNewValue(oldsubscriptionFieldValue)(newFormValue)
+          case None => Right(oldsubscriptionFieldValue)
+        }
+      )
+
+      def doConnectorSave(valuesToSave: Seq[SubscriptionFieldValue]) = { 
+        val connector = connectorsWrapper.forEnvironment(application.deployedTo).apiSubscriptionFieldsConnector
+        val fieldsToSave = valuesToSave.map(v => (v.definition.name -> v.value)).toMap
+
+        connector.saveFieldValues(application.clientId, apiContext, apiVersion, fieldsToSave)
+      }
+
+      eitherValuesToSave.toList.sequence.fold(
+        accessDenied => Future.successful(SaveSubscriptionFieldsAccessDeniedResponse),
+        values => doConnectorSave(values)
+      )
+    }
+  }
+  
+  // TODO: 
+  def saveBlankFieldValues(definitions : Seq[SubscriptionFieldDefinition]) : Future[ServiceSaveSubscriptionFieldsResponse] = {
+    // Load values
+    // If any field is non-blank, skip
+
+    Future.successful(SaveSubscriptionFieldsSuccessResponse)
   }
 
   def getAllFieldDefinitions(environment: Environment)(implicit hc: HeaderCarrier): Future[DefinitionsByApiVersion] = {

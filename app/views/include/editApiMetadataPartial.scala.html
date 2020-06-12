@@ -32,37 +32,43 @@
   messages: Messages)
 
 @helper.form(
- action = formPostUrl,
- 'class -> "fields-subscription") {
+  action = formPostUrl,
+  'class -> "fields-subscription") {
 
- @helper.CSRF.formField
+  @helper.CSRF.formField
 
-@helper.repeatWithIndex(viewModel.form("fields")) { (formField, idx) =>
-  @defining(viewModel.fields.toList(idx)) { field => 
-    @defining(formField("name").value.getOrElse("")) { formFieldName => 
-      <div class="form-group @if(viewModel.form.errors(formFieldName).nonEmpty){form-group-error}">
-
-        @fieldError(viewModel.form.errors, formFieldName)
+  @for((field, idx) <- viewModel.fields.zipWithIndex) {
+    @defining(viewModel.writableFieldValues.get(field.name)) { formFieldValue => 
+        <hr>  
         
-        @if(field.canWrite){
-          <input type="hidden" name="fields[@idx].name" value="@formFieldName">
-        }
-    
+        <div class="form-group @if(viewModel.form.errors(field.name).nonEmpty){form-group-error}">
 
-        <label class="form-label" for="@formFieldName">
-          @{field.description}
-        </label>
-        <span class="form-hint">@{field.hint}</span>
+          @fieldError(viewModel.form.errors, field.name)
+          
+          @if(field.canWrite){
+            <input type="hidden" name="@{formFieldValue.get.playFormFieldNamePrefix}.name" value="@{field.name}">
+          }
 
-        <input type="text"
-          name="fields[@idx].value"
-          value="@formField("value").value"
-          class="form-input input--medium @if(viewModel.form.errors(formFieldName).nonEmpty){form-control-error}"
-          id="@formFieldName" @if(!field.canWrite){disabled}/>
-      </div>
-    }
-  } 
-}
+          <label class="form-label" for="@{field.name}">
+            @{field.description}
+          </label>
+          <span class="form-hint">@{field.hint}</span>
+
+          @if(field.canWrite){
+          <input type="text"
+            name="@{formFieldValue.get.playFormFieldNamePrefix}.value"
+            value="@{formFieldValue.get.value}"
+            class="form-input input--medium @if(viewModel.form.errors(field.name).nonEmpty){form-control-error}"
+            id="@{field.name}" />
+          } else {
+          <input type="text"
+            value="@{field.originalValue}"
+            class="form-input input--medium"
+            id="@{field.name}" disabled/>
+          }
+        </div>
+    } 
+  }
 
  <div class="form-group">
   <button id="@{IdFormatter.identifier(viewModel.apiContext, viewModel.apiVersion)}-submit" class="button submit-button" type="submit">Save changes</button>
