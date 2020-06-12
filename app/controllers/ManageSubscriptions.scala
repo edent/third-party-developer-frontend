@@ -22,6 +22,8 @@ import config.{ApplicationConfig, ErrorHandler}
 import domain.{APISubscriptionStatusWithSubscriptionFields, CheckInformation, Environment, Application}
 import domain.ApiSubscriptionFields._
 import model.NoSubscriptionFieldsRefinerBehaviour
+import model.EditManageSubscription._
+import model.EditManageSubscription.EditApiConfigurationFormData._
 import play.api.data
 import play.api.data.Form
 import play.api.data.Forms._
@@ -65,96 +67,6 @@ object ManageSubscriptions {
       displayedStatus = in.apiVersion.displayedStatus,
       subsValues = in.fields.fields.map(toFieldValue)
     )
-  }
-
-  case class EditApiConfigurationViewModel(
-    apiName: String,
-    apiVersion: String,
-    apiContext: String,
-    displayedStatus: String,
-    fields: Seq[SubscriptionFieldViewModel],
-    form: Form[EditApiConfigurationFormData],
-    writableFieldValues : Map[String, FormValue])
-
-  case class FormValue(playFormFieldNamePrefix: String, value: String)
-
-  object EditApiConfigurationViewModel {
-    def toViewModel(
-        apiSubscription : APISubscriptionStatusWithSubscriptionFields,
-        form : Form[EditApiConfigurationFormData],
-        role: Role): EditApiConfigurationViewModel = {
-     val fieldsViewModel : Seq[SubscriptionFieldViewModel] = apiSubscription.fields.fields
-        .map(field => {
-          val accessLevel = DevhubAccessLevel.fromRole(role)
-          val canWrite = field.definition.access.devhub.satisfiesWrite(accessLevel)
-        
-          SubscriptionFieldViewModel(field.definition.name, field.definition.description, field.definition.hint, canWrite, field.value)
-        })
-    
-      // TODO: Merge with above (somehow?)
-      val writableFieldValues = fieldsViewModel
-        .filter(_.canWrite)
-        .zipWithIndex
-        .map { case(field, index) => {
-            val preFix = s"fields[$index]"
-            field.name -> FormValue(preFix, form(s"$preFix.value").value.get) // TODO: Naked get?
-          }
-        }.toMap
-        
-      EditApiConfigurationViewModel(
-        apiSubscription.name,
-        apiSubscription.apiVersion.version,
-        apiSubscription.context,
-        apiSubscription.apiVersion.displayedStatus,
-        fieldsViewModel,
-        form,
-        writableFieldValues)
-    }
-  }
-
-  case class SubscriptionFieldViewModel(name: String, description: String, hint: String, canWrite: Boolean, originalValue: String)
- 
-  case class EditApiConfigurationFormData(fields: List[EditSubscriptionValueFormData])
-  case class EditSubscriptionValueFormData(name: String, value: String)
-
-  object EditApiConfigurationFormData {
-    val form: Form[EditApiConfigurationFormData] = Form(
-      mapping(
-        "fields" -> list(
-          mapping(
-            "name" -> text,
-            "value" -> text
-          )(fromFormValues)(toFormValues)
-        )
-      )(EditApiConfigurationFormData.apply)(EditApiConfigurationFormData.unapply)
-      )
-  }
-
-  def toFormData(in: APISubscriptionStatusWithSubscriptionFields, role: Role): Form[EditApiConfigurationFormData] = {
-    def toEditSubscriptionValueFormData(fieldValue: SubscriptionFieldValue) : EditSubscriptionValueFormData = {
-      EditSubscriptionValueFormData(fieldValue.definition.name, fieldValue.value)
-    }
-
-    val formFields = in.fields.fields.toList
-      .filter(field => {
-        val accessLevel = DevhubAccessLevel.fromRole(role)
-        field.definition.access.devhub.satisfiesWrite(accessLevel)
-      })
-      .map(toEditSubscriptionValueFormData(_))
-    
-    val data = EditApiConfigurationFormData(formFields)
-    EditApiConfigurationFormData.form.fill(data)
-  }
-
-  def fromFormValues(
-      name: String,
-      value: String
-  ) = {
-      EditSubscriptionValueFormData(name, value)
-  }
-
-  def toFormValues(editSubscriptionValueFormData: EditSubscriptionValueFormData): Option[(String, String)] = {
-    Some((editSubscriptionValueFormData.name, editSubscriptionValueFormData.value))
   }
 }
 
@@ -219,7 +131,7 @@ class ManageSubscriptions @Inject() (
     
     val subscriptionFieldValues = apiSubscription.fields.fields
 
-    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, subscriptionFieldValues, (formWithErrors : Form[EditApiConfigurationFormData])=>{
+    subscriptionConfigurationSave(apiContext, apiVersion, successRedirectUrl, subscriptionFieldValues, (formWithErrors : Form[EditApiConfigurationFormData]) => {
         val role = definitionsRequest.applicationRequest.role
 
         val viewModel = EditApiConfigurationViewModel.toViewModel(apiSubscription, formWithErrors, role)
@@ -236,16 +148,16 @@ class ManageSubscriptions @Inject() (
                                             validationFailureView : Form[EditApiConfigurationFormData] => Html)
                                            (implicit hc: HeaderCarrier, request: ApplicationRequest[AnyContent]): Future[Result] = {
 
-    def handleValidForm(validForm: EditApiConfigurationFormData) = {
-      val formFieldsAsMap = validForm.fields.map(field => field.name -> field.value).toMap
+    def handleValidForm(postedForm: EditApiConfigurationFormData) = {
+      val postedValuesAsMap = postedForm.fields.map(field => field.name -> field.value).toMap
 
       subFieldsService
-        .saveFieldValues(request.role, request.application, apiContext, apiVersion, subscriptionFieldValues, formFieldsAsMap )
+        .saveFieldValues(request.role, request.application, apiContext, apiVersion, subscriptionFieldValues, postedValuesAsMap)
         .map({
           case SaveSubscriptionFieldsSuccessResponse => Redirect(successRedirect)
           case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>          
             val errors = fieldErrors.map(fe => data.FormError(fe._1, fe._2)).toSeq
-            val formWithErrors  = EditApiConfigurationFormData.form.fill(validForm).copy(errors = errors)
+            val formWithErrors  = EditApiConfigurationFormData.form.fill(postedForm).copy(errors = errors)
             BadRequest(validationFailureView(formWithErrors))
           case SaveSubscriptionFieldsAccessDeniedResponse => Forbidden(errorHandler.badRequestTemplate)
         })

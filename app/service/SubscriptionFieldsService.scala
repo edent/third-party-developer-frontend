@@ -51,7 +51,7 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
                         application : Application,
                         apiContext: String,
                         apiVersion : String,
-                        oldValues: Seq[SubscriptionFieldValue], //TODO: Try with just he definition
+                        oldValues: Seq[SubscriptionFieldValue],
                         newValues: Map[String, String])
                         (implicit hc: HeaderCarrier) : Future[ServiceSaveSubscriptionFieldsResponse] = {
     case class AccessDenied()
