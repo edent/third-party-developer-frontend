@@ -288,7 +288,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
             givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-            when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+            when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any(), any())(any[HeaderCarrier]()))
               .thenReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
 
             private val loggedInWithFormValues = editFormPostRequest(subSubscriptionValue.definition.name,newSubscriptionValue)
@@ -303,14 +303,15 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
             status(result) shouldBe SEE_OTHER
             redirectLocation(result) shouldBe Some(expectedRedirectUrl)
 
-            val expectedFields = Seq(SubscriptionFieldValue(subSubscriptionValue.definition, newSubscriptionValue))
+            val expectedFields = Map(subSubscriptionValue.definition.name -> newSubscriptionValue)
 
             verify(mockSubscriptionFieldsService)
-              .saveFieldValues(
-                eqTo(ValidateAgainstRole(role)),
+              .saveFieldValues2(
+                eqTo(role),
                 eqTo(application),
                 eqTo(apiSubscriptionStatus.context),
                 eqTo(apiSubscriptionStatus.apiVersion.version),
+                eqTo(apiSubscriptionStatus.fields.fields),
                 eqTo(expectedFields))(any[HeaderCarrier]())
           }
 
@@ -322,7 +323,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
             givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-            when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+            when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any(), any())(any[HeaderCarrier]()))
               .thenReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
 
             val newSubscriptionValue = "new value"
@@ -342,16 +343,15 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
             status(result) shouldBe SEE_OTHER
             redirectLocation(result) shouldBe Some(expectedRedirectUrl)
 
-            val expectedFields = Seq(
-              readonlySubSubscriptionValue,
-              SubscriptionFieldValue(writableSubSubscriptionValue.definition, newSubscriptionValue))
+            val expectedFields = Map(writableSubSubscriptionValue.definition.name -> newSubscriptionValue)
 
             verify(mockSubscriptionFieldsService)
-              .saveFieldValues(
-                eqTo(ValidateAgainstRole(role)),
+              .saveFieldValues2(
+                eqTo(role),
                 eqTo(application),
                 eqTo(apiSubscriptionStatus.context),
                 eqTo(apiSubscriptionStatus.apiVersion.version),
+                eqTo(apiSubscriptionStatus.fields.fields),
                 eqTo(expectedFields))(any[HeaderCarrier]())
           }
 
@@ -367,8 +367,8 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
             
             givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-            when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
-              .thenReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+            when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+              .thenReturn(Future.successful(SaveSubscriptionFieldsAccessDeniedResponse))
 
             val newSubscriptionValue = "illegal new value"
 
@@ -385,14 +385,6 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
                 mode))(loggedInWithFormValues))
 
             status(result) shouldBe FORBIDDEN
-
-            verify(mockSubscriptionFieldsService, never())
-              .saveFieldValues(
-                any(),
-                any(),
-                any(),
-                any(),
-                any())(any[HeaderCarrier]())
           }
           
           s"save action fails validation and shows error message in mode [$mode]" in new ManageSubscriptionsSetup {
@@ -402,7 +394,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
             givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-            when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+            when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any(), any())(any[HeaderCarrier]()))
               .thenReturn(Future.successful(SaveSubscriptionFieldsFailureResponse(fieldErrors)))
 
             private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
@@ -429,7 +421,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
             givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-            when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+            when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any(), any())(any[HeaderCarrier]()))
               .thenReturn(Future.successful(SaveSubscriptionFieldsAccessDeniedResponse))
 
             private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
@@ -479,7 +471,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
           givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-          when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+          when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any(), any())(any[HeaderCarrier]()))
             .thenReturn(Future.successful(SaveSubscriptionFieldsFailureResponse(fieldErrors)))
 
           private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
@@ -505,7 +497,7 @@ class ManageSubscriptionsSpec extends BaseControllerSpec with WithCSRFAddToken w
 
           givenApplicationHasSubs(application, Seq(apiSubscriptionStatus))
 
-          when(mockSubscriptionFieldsService.saveFieldValues(any(), any(), any(), any(), any())(any[HeaderCarrier]()))
+          when(mockSubscriptionFieldsService.saveFieldValues2(any(), any(), any(), any(), any(), any())(any[HeaderCarrier]()))
             .thenReturn(Future.successful(SaveSubscriptionFieldsAccessDeniedResponse))
 
           private val subSubscriptionValue  = apiSubscriptionStatus.fields.fields.head
