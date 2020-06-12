@@ -55,7 +55,7 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
                         newValues: Map[String, String])
                         (implicit hc: HeaderCarrier) : Future[ServiceSaveSubscriptionFieldsResponse] = {
     case class AccessDenied()
-    
+    //TODO tidy up variable names
     if (newValues.isEmpty) {
         Future.successful(SaveSubscriptionFieldsSuccessResponse)
     } else {
