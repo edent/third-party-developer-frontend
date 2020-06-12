@@ -240,7 +240,7 @@ class ManageSubscriptions @Inject() (
       val formFieldsAsMap = validForm.fields.map(field => field.name -> field.value).toMap
 
       subFieldsService
-        .saveFieldValues2(request.role, request.application, apiContext, apiVersion, subscriptionFieldValues, formFieldsAsMap )
+        .saveFieldValues(request.role, request.application, apiContext, apiVersion, subscriptionFieldValues, formFieldsAsMap )
         .map({
           case SaveSubscriptionFieldsSuccessResponse => Redirect(successRedirect)
           case SaveSubscriptionFieldsFailureResponse(fieldErrors) =>          

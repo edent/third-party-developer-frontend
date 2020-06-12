@@ -47,38 +47,7 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
     }
   }
 
-  // TODO: Delete and use v2
-  def saveFieldValues(accessValidation : AccessValidation, application: Application, apiContext: String, apiVersion: String, newValues : Seq[SubscriptionFieldValue])
-                        (implicit hc: HeaderCarrier): Future[ServiceSaveSubscriptionFieldsResponse] = {
-
-    def allowedToWriteToAllValues(values: Seq[SubscriptionFieldValue], devhubAccessLevel: DevhubAccessLevel) : Boolean = {
-      values.forall(_.definition.access.devhub.satisfiesWrite(devhubAccessLevel))
-    }
-
-    def isRoleAllowed : Boolean = {
-      accessValidation match {
-        case ValidateAgainstRole(role) =>
-          val devhubAccessLevel = DevhubAccessLevel.fromRole(role)
-
-          // TODO: This is the problem
-           allowedToWriteToAllValues(newValues,devhubAccessLevel)
-        case SkipRoleValidation => true
-      }
-    }
-
-    if (isRoleAllowed) {
-      val connector = connectorsWrapper.forEnvironment(application.deployedTo).apiSubscriptionFieldsConnector
-
-      val fieldsToSave = newValues.map(v => (v.definition.name -> v.value)).toMap
-
-      connector.saveFieldValues(application.clientId, apiContext, apiVersion, fieldsToSave)
-    } else { 
-      Future.successful(SaveSubscriptionFieldsAccessDeniedResponse)
-    }
-  }
-
-  // TODO : Old values or just definition
-  def saveFieldValues2( role : Role,
+  def saveFieldValues( role : Role,
                         application : Application,
                         apiContext: String,
                         apiVersion : String,

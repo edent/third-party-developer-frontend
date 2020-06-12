@@ -129,83 +129,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
     }
   }
 
-  "saveFieldValues" should {
-    "save the fields" in new Setup {
-      val developerRole  = ValidateAgainstRole(Role.DEVELOPER)
-      
-      val access = AccessRequirements.Default
-
-      val definition = buildSubscriptionFieldValue("field-write-allowed", accessRequirements = access).definition
-      
-      val newValue = SubscriptionFieldValue(definition, "newValue")
-
-      given(mockSubscriptionFieldsConnector.saveFieldValues(
-          any(),
-          any(),
-          any(),
-          any())(any[HeaderCarrier]))
-        .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
-
-      val result = await(underTest.saveFieldValues(developerRole, application, apiContext, apiVersion, Seq(newValue)))
-
-      result shouldBe SaveSubscriptionFieldsSuccessResponse
-
-      val expectedField = Map(definition.name -> newValue.value)
-      verify(mockSubscriptionFieldsConnector)
-        .saveFieldValues(
-          meq(clientId),
-          meq(apiContext),
-          meq(apiVersion),
-          meq(expectedField))(any[HeaderCarrier])
-    }
-
-     "save the fields fails with access denied" in new Setup {
-    
-      val developerRole = ValidateAgainstRole(Role.DEVELOPER)
-      
-      val access = AccessRequirements(devhub = DevhubAccessRequirements(NoOne, NoOne))
-
-      val definition = buildSubscriptionFieldValue("field-denied", accessRequirements = access).definition
-
-      val newValues = Seq(SubscriptionFieldValue(definition, "newValue"))
-
-      val result = await(underTest.saveFieldValues(developerRole, application, apiContext, apiVersion, newValues))
-
-      result shouldBe SaveSubscriptionFieldsAccessDeniedResponse
-
-      verify(mockSubscriptionFieldsConnector, never())
-        .saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier])
-    }
-
-    "save the fields skipping role validation" in new Setup {
-      val access = AccessRequirements.Default
-
-      val definition = buildSubscriptionFieldValue("field-write-allowed", accessRequirements = access).definition
-      
-      val newValue = SubscriptionFieldValue(definition, "newValue")
-
-      given(mockSubscriptionFieldsConnector.saveFieldValues(
-          any(),
-          any(),
-          any(),
-          any())(any[HeaderCarrier]))
-        .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
-
-      val result = await(underTest.saveFieldValues(SkipRoleValidation, application, apiContext, apiVersion, Seq(newValue)))
-
-      result shouldBe SaveSubscriptionFieldsSuccessResponse
-
-      val expectedField = Map(definition.name -> newValue.value)
-      verify(mockSubscriptionFieldsConnector)
-        .saveFieldValues(
-          meq(clientId),
-          meq(apiContext),
-          meq(apiVersion),
-          meq(expectedField))(any[HeaderCarrier])
-    }
-  }
-
-  "saveFieldsValues2" should {
+  "saveFieldsValues" should {
     "save the fields" in new Setup {
       val developerRole  = Role.DEVELOPER
       
@@ -232,7 +156,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
           any())(any[HeaderCarrier]))
         .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
 
-      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, oldValues, newValuesMap))
+      val result = await(underTest.saveFieldValues(developerRole, application, apiContext, apiVersion, oldValues, newValuesMap))
 
       result shouldBe SaveSubscriptionFieldsSuccessResponse
 
@@ -261,7 +185,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
 
       val newValues = Map(definition.name -> "newValue")
 
-      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, oldValues, newValues))
+      val result = await(underTest.saveFieldValues(developerRole, application, apiContext, apiVersion, oldValues, newValues))
 
       result shouldBe SaveSubscriptionFieldsAccessDeniedResponse
 
