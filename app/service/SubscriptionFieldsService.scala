@@ -121,12 +121,27 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
     }
   }
   
-  // TODO: 
-  def saveBlankFieldValues(definitions : Seq[SubscriptionFieldDefinition]) : Future[ServiceSaveSubscriptionFieldsResponse] = {
-    // Load values
-    // If any field is non-blank, skip
+  def saveBlankFieldValues( application: Application,
+                            apiContext: String,
+                            apiVersion: String,
+                            values : Seq[SubscriptionFieldValue])
+                            (implicit hc: HeaderCarrier) : Future[ServiceSaveSubscriptionFieldsResponse] = {
 
-    Future.successful(SaveSubscriptionFieldsSuccessResponse)
+    def createEmptyFieldValues(fieldDefinitions: Seq[SubscriptionFieldDefinition]) = {
+      fieldDefinitions
+        .map(d => d.name -> "")
+        .toMap
+    }
+
+    if(values.forall(value => value.value == "")){
+      val connector = connectorsWrapper.forEnvironment(application.deployedTo).apiSubscriptionFieldsConnector
+
+      val emptyFieldValues = createEmptyFieldValues(values.map(_.definition))
+
+      connector.saveFieldValues(application.clientId, apiContext, apiVersion, emptyFieldValues)
+    } else {
+      Future.successful(SaveSubscriptionFieldsSuccessResponse)
+    }
   }
 
   def getAllFieldDefinitions(environment: Environment)(implicit hc: HeaderCarrier): Future[DefinitionsByApiVersion] = {

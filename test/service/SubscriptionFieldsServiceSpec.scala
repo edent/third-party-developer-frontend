@@ -38,7 +38,7 @@ import scala.concurrent.Future
 import builder.SubscriptionsBuilder
 import domain.AccessRequirements
 import domain.DevhubAccessRequirements
-import domain.DevhubAccessRequirement.NoOne
+import domain.DevhubAccessRequirement.{NoOne, Anyone}
 import domain.Role
 import service.SubscriptionFieldsService.ValidateAgainstRole
 import service.SubscriptionFieldsService.SkipRoleValidation
@@ -177,7 +177,7 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
         .saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier])
     }
 
-     "save the fields skipping role validation" in new Setup {
+    "save the fields skipping role validation" in new Setup {
       val access = AccessRequirements.Default
 
       val definition = buildSubscriptionFieldValue("field-write-allowed", accessRequirements = access).definition
@@ -202,6 +202,119 @@ class SubscriptionFieldsServiceSpec extends UnitSpec with ScalaFutures with Mock
           meq(apiContext),
           meq(apiVersion),
           meq(expectedField))(any[HeaderCarrier])
+    }
+  }
+
+  "saveFieldsValues2" should {
+    "save the fields" in new Setup {
+      val developerRole  = Role.DEVELOPER
+      
+      val access = AccessRequirements.Default
+
+      val definition1 = buildSubscriptionFieldValue("field1", accessRequirements = access).definition
+      val definition2 = buildSubscriptionFieldValue("field2", accessRequirements = access).definition
+
+      val value1 = SubscriptionFieldValue(definition1, "oldValue1")
+      val value2 = SubscriptionFieldValue(definition2, "oldValue2")
+
+      val oldValues = Seq(
+          SubscriptionFieldValue(definition1, "oldValue1"),
+          SubscriptionFieldValue(definition2, "oldValue2")
+      )
+      
+      val newValue1 = "newValue"
+      val newValuesMap = Map(definition1.name -> newValue1)
+
+      given(mockSubscriptionFieldsConnector.saveFieldValues(
+          any(),
+          any(),
+          any(),
+          any())(any[HeaderCarrier]))
+        .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+
+      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, oldValues, newValuesMap))
+
+      result shouldBe SaveSubscriptionFieldsSuccessResponse
+
+      val newFields1 = Map(
+        definition1.name -> newValue1,
+        definition2.name -> value2.value
+      )
+
+      verify(mockSubscriptionFieldsConnector)
+        .saveFieldValues(
+          meq(clientId),
+          meq(apiContext),
+          meq(apiVersion),
+          meq(newFields1))(any[HeaderCarrier])
+    }
+
+    "save the fields fails with write access denied" in new Setup {
+    
+      val developerRole = Role.DEVELOPER
+      
+      val access = AccessRequirements(devhub = DevhubAccessRequirements(NoOne, NoOne))
+
+      val definition = buildSubscriptionFieldValue("field-denied", accessRequirements = access).definition
+
+      val oldValues = Seq(SubscriptionFieldValue(definition, "oldValue"))
+
+      val newValues = Map(definition.name -> "newValue")
+
+      val result = await(underTest.saveFieldValues2(developerRole, application, apiContext, apiVersion, oldValues, newValues))
+
+      result shouldBe SaveSubscriptionFieldsAccessDeniedResponse
+
+      verify(mockSubscriptionFieldsConnector, never())
+        .saveFieldValues(any(), any(), any(), any())(any[HeaderCarrier])
+    }
+  }
+
+  "saveBlankFieldValues" should {
+    "save when old values are empty" in new Setup {
+      val emptyOldValue = SubscriptionFieldValue(buildSubscriptionFieldValue("field-name").definition, "")
+
+      given(mockSubscriptionFieldsConnector.saveFieldValues(
+        any(),
+        any(),
+        any(),
+        any())(any[HeaderCarrier]))
+      .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+
+      val result = await(underTest.saveBlankFieldValues(application, apiContext, apiVersion, Seq(emptyOldValue)))
+      result shouldBe SaveSubscriptionFieldsSuccessResponse
+    
+      val expectedSavedFields = Map(
+        emptyOldValue.definition.name -> ""
+      )
+      
+       verify(mockSubscriptionFieldsConnector)
+        .saveFieldValues(
+          meq(clientId),
+          meq(apiContext),
+          meq(apiVersion),
+          meq(expectedSavedFields))(any[HeaderCarrier])
+    }
+
+    "dont save when old values are populated" in new Setup {
+      val populatedValue = buildSubscriptionFieldValue("field-name")
+
+      given(mockSubscriptionFieldsConnector.saveFieldValues(
+        any(),
+        any(),
+        any(),
+        any())(any[HeaderCarrier]))
+      .willReturn(Future.successful(SaveSubscriptionFieldsSuccessResponse))
+
+      val result = await(underTest.saveBlankFieldValues(application, apiContext, apiVersion, Seq(populatedValue)))
+      result shouldBe SaveSubscriptionFieldsSuccessResponse
+      
+       verify(mockSubscriptionFieldsConnector, never())
+        .saveFieldValues(
+          any(),
+          any(),
+          any(),
+          any())(any[HeaderCarrier])
     }
   }
 }

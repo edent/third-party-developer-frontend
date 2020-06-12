@@ -104,6 +104,7 @@ class ApplicationService @Inject() (
 
     val apiIdentifier = APIIdentifier(context, version)
 
+    //TODO delete me
     def createEmptyFieldValues(fieldDefinitions: Seq[SubscriptionFieldDefinition]) = {
       fieldDefinitions
         .map(d => SubscriptionFieldValue(d, ""))
