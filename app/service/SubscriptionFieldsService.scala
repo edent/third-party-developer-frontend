@@ -55,24 +55,22 @@ class SubscriptionFieldsService @Inject()(connectorsWrapper: ConnectorsWrapper)(
                         newValues: Map[String, String])
                         (implicit hc: HeaderCarrier) : Future[ServiceSaveSubscriptionFieldsResponse] = {
     case class AccessDenied()
-    //TODO tidy up variable names
     if (newValues.isEmpty) {
         Future.successful(SaveSubscriptionFieldsSuccessResponse)
     } else {
-      val accessLevel = DevhubAccessLevel.fromRole(role)
 
-      def toNewValue(oldsubscriptionFieldValue: SubscriptionFieldValue)(newFormValue: String) = {
-        if (oldsubscriptionFieldValue.definition.access.devhub.satisfiesWrite(accessLevel)){
-          Right(oldsubscriptionFieldValue.copy(value = newFormValue))
+      def toNewValue(oldValue: SubscriptionFieldValue)(newFormValue: String) = {
+        if (oldValue.definition.access.devhub.satisfiesWrite(DevhubAccessLevel.fromRole(role))){
+          Right(oldValue.copy(value = newFormValue))
         } else {
           Left(AccessDenied())
         }
       }
 
-      val eitherValuesToSave = oldValues.map(oldsubscriptionFieldValue => 
-        newValues.get(oldsubscriptionFieldValue.definition.name) match {
-          case Some(newFormValue) => toNewValue(oldsubscriptionFieldValue)(newFormValue)
-          case None => Right(oldsubscriptionFieldValue)
+      val eitherValuesToSave = oldValues.map(oldValue => 
+        newValues.get(oldValue.definition.name) match {
+          case Some(newFormValue) => toNewValue(oldValue)(newFormValue)
+          case None => Right(oldValue)
         }
       )
 
