@@ -31,18 +31,5 @@
     </ul>
 </div>
 } else {
-    @if(form.errors.nonEmpty) {
-        <div class="error-summary"
-             id="error-summary-display"
-             role="alert"
-             aria-labelledby="error-summary-heading"
-             tabindex="-1">
-            <h2 id="error-summary-heading" class="heading-medium error-summary-heading">There is a problem</h2>
-            <ul class="error-summary-list">
-                @for(error <- form.errors) {
-                <li><a href="#@error.key">@Messages(s"${error.messages.head}")</a></li>
-                }
-            </ul>
-        </div>
-    }
+    @errorSummary2(form.errors)
 }
