@@ -44,6 +44,11 @@ GET         /profile/protect-account/remove                                     
 POST        /profile/protect-account/remove                                                 controllers.ProtectAccount.remove2SV
 GET         /profile/protect-account/remove/complete                                        controllers.ProtectAccount.get2SVRemovalCompletePage
 
+GET         /profile/email-preferences/start                                                controllers.EmailPreferences.emailPreferencesStartPage
+GET         /profile/email-preferences/tax-regimes                                          controllers.EmailPreferences.taxRegimeSelectionPage
+GET         /profile/email-preferences/services                                             controllers.EmailPreferences.serviceSelectionPage
+GET         /profile/email-preferences/topics                                               controllers.EmailPreferences.topicSelectionPage
+GET         /profile/email-preferences/complete                                             controllers.EmailPreferences.emailPreferencesCompletePage
 
 GET         /profile/password                                                               controllers.Profile.showPasswordPage
 POST        /profile/password                                                               controllers.Profile.updatePassword

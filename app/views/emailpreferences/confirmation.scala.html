@@ -1,0 +1,50 @@
+@*
+ * Copyright 2020 HM Revenue & Customs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *@
+
+@import config.ApplicationConfig
+@import include._
+@import domain.{BackButtonWithJavaScript, DeveloperSession}
+
+@import uk.gov.hmrc.urls.Link
+@()(implicit messages: Messages, loggedIn: DeveloperSession, request: play.api.mvc.Request[Any], appConfig: ApplicationConfig)
+
+@devMain(
+    title = "Email preferences",
+    userFullName = loggedIn.loggedInName,
+    back = BackButtonWithJavaScript,
+    developerSession = Some(loggedIn)
+) {
+
+    <h1 class="heading-large">Email preferences</h1>
+
+    <p>You have chosen to receive emails about these APIs. You can change your preferences at any time.</p>
+
+    <p>If you have an application we will email you about:</p>
+
+    <ul class="list list-bullet">
+        <li>important notices and service updates</li>
+        <li>changes to your application</li>
+        <li>making your application accessible</li>
+    </ul>
+
+    <h2>Email preferences</h2>
+
+    <p>Preferences table...</p>
+
+    <p>Check the service availability page for information about live incidents.</p>
+
+    <p><a href="@routes.AddApplication.manageApps()">View all applications</a></p>
+}
