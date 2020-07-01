@@ -16,10 +16,12 @@
 
 package config
 
-import javax.inject.{Inject, Singleton}
+import connectors.ApiPlatformMicroserviceConnectorConfig
+import javax.inject.{Inject, Provider, Singleton}
 import org.joda.time._
 import play.api.{Configuration, Environment}
 import service.MfaMandateService
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.config.ServicesConfig
 
 @Singleton
@@ -72,6 +74,11 @@ class ApplicationConfig @Inject()(override val runModeConfiguration: Configurati
   val apiSubscriptionFieldsSandboxBearerToken = bearerToken("api-subscription-fields-sandbox")
   val apiSubscriptionFieldsSandboxUseProxy = useProxy("api-subscription-fields-sandbox")
   val apiSubscriptionFieldsSandboxApiKey = apiKey("api-subscription-fields-sandbox")
+
+  @Singleton
+  class ApiPlatformMicroserviceConnectorConfigProvider @Inject()(val sc: ServicesConfig) extends Provider[ApiPlatformMicroserviceConnectorConfig] {
+    override def get(): ApiPlatformMicroserviceConnectorConfig = ApiPlatformMicroserviceConnectorConfig(sc.baseUrl("api-platform-microservice"))
+  }
 
   private def getConfig(key: String) =
     runModeConfiguration.getString(key).getOrElse {
