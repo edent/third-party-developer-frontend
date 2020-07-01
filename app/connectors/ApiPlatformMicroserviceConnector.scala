@@ -16,20 +16,25 @@
 
 package connectors
 
-import connectors.ApiPlatformMicroserviceConnector.APIDefinition
+import connectors.ApiPlatformMicroserviceConnector.{APIDefinition, servicesByCategory}
 import javax.inject.{Inject, Singleton}
+import model.APICategory.APICategory
 import play.api.libs.json.{Format, Json}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import cats.implicits._
+import model.APICategory
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ApiPlatformMicroserviceConnector @Inject()(config: ApiPlatformMicroserviceConnectorConfig, http: HttpClient)(implicit ec: ExecutionContext) {
 
-  def fetchApiDefinitionsForCollaborator(collaboratorEmail: String): Future[Seq[APIDefinition]] = {
+  def fetchApiDefinitionsForCollaborator(collaboratorEmail: String): Future[Map[APICategory, Set[String]]] = {
     implicit val hc: HeaderCarrier = HeaderCarrier()
+
     http.GET[Seq[APIDefinition]](s"${config.baseUrl}/combined-api-definitions", Seq("collaboratorEmail" -> collaboratorEmail))
+      .map(servicesByCategory)
   }
 }
 
@@ -37,6 +42,17 @@ object ApiPlatformMicroserviceConnector {
   implicit val formatAPIDefinition: Format[APIDefinition] = Json.format[APIDefinition]
 
   private[connectors] case class APIDefinition(serviceName: String, categories: Seq[String] = Seq.empty)
+
+  def servicesByCategory(apiDefinitions: Seq[APIDefinition]): Map[APICategory, Set[String]] = {
+    def serviceCategories(apiDefinition: APIDefinition): Map[APICategory, Set[String]] =
+      apiDefinition.categories
+        .map(category => APICategory.withName(category) -> Set(apiDefinition.serviceName))
+        .toMap
+
+    apiDefinitions
+      .map(serviceCategories)
+      .fold(Map.empty)(_ combine _)
+  }
 }
 
 case class ApiPlatformMicroserviceConnectorConfig(baseUrl: String)

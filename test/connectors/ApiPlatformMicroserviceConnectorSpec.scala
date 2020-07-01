@@ -17,6 +17,7 @@
 package connectors
 
 import connectors.ApiPlatformMicroserviceConnector.APIDefinition
+import model.APICategory._
 import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito.when
 import org.scalatest.concurrent.ScalaFutures
@@ -47,15 +48,15 @@ class ApiPlatformMicroserviceConnectorSpec extends UnitSpec with ScalaFutures wi
   "fetchAPIDefinitionsForCollaborator" should {
     "fetch api definitions" in new Setup {
 
-      val expectedAPIDefinitions = Seq(APIDefinition("Agent Authorisation", Seq("AGENTS")))
+      val apiDefinitions = Seq(APIDefinition("Agent Authorisation", Seq("AGENTS")), APIDefinition("Multi Category API", Seq("AGENTS", "CUSTOMS")))
 
       when(mockHttp.GET[Seq[APIDefinition]](meq(endpoint("combined-api-definitions")),
         meq(Seq("collaboratorEmail" -> devEmail)))(any(), any(), any()))
-        .thenReturn(successful(expectedAPIDefinitions))
+        .thenReturn(successful(apiDefinitions))
 
-      val result: Seq[APIDefinition] = await(connector.fetchApiDefinitionsForCollaborator(devEmail))
+      val result: Map[APICategory, Set[String]] = await(connector.fetchApiDefinitionsForCollaborator(devEmail))
 
-      result shouldBe expectedAPIDefinitions
+      result shouldBe Map(AGENTS -> Set("Agent Authorisation", "Multi Category API"), CUSTOMS -> Set("Multi Category API"))
     }
 
     "propagate error when endpoint returns error" in new Setup {

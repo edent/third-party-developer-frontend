@@ -21,7 +21,6 @@ import javax.inject.{Inject, Provider, Singleton}
 import org.joda.time._
 import play.api.{Configuration, Environment}
 import service.MfaMandateService
-import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.config.ServicesConfig
 
 @Singleton
