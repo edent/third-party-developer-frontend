@@ -16,7 +16,6 @@
 
 package config
 
-import connectors.ApiPlatformMicroserviceConnectorConfig
 import javax.inject.{Inject, Provider, Singleton}
 import org.joda.time._
 import play.api.{Configuration, Environment}
@@ -74,10 +73,7 @@ class ApplicationConfig @Inject()(override val runModeConfiguration: Configurati
   val apiSubscriptionFieldsSandboxUseProxy = useProxy("api-subscription-fields-sandbox")
   val apiSubscriptionFieldsSandboxApiKey = apiKey("api-subscription-fields-sandbox")
 
-  @Singleton
-  class ApiPlatformMicroserviceConnectorConfigProvider @Inject()(val sc: ServicesConfig) extends Provider[ApiPlatformMicroserviceConnectorConfig] {
-    override def get(): ApiPlatformMicroserviceConnectorConfig = ApiPlatformMicroserviceConnectorConfig(sc.baseUrl("api-platform-microservice"))
-  }
+  val apiPlatformMicroserviceUrl = baseUrl("api-platform-microservice")
 
   private def getConfig(key: String) =
     runModeConfiguration.getString(key).getOrElse {

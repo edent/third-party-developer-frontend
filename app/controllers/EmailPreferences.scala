@@ -17,17 +17,19 @@
 package controllers
 
 import config.{ApplicationConfig, ErrorHandler}
-import connectors.ThirdPartyDeveloperConnector
+import connectors.{ApiPlatformMicroserviceConnector, ThirdPartyDeveloperConnector}
 import javax.inject.Inject
+import model.APICategory.APICategory
 import play.api.i18n.MessagesApi
 import play.api.libs.crypto.CookieSigner
-import play.api.mvc.{Action, AnyContent}
+import play.api.mvc.{Action, AnyContent, Result}
 import service.SessionService
 import views.html.emailpreferences.{confirmation, emailPreferences, serviceSelection, taxRegimeSelection, topicSelection}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class EmailPreferences @Inject()(val thirdPartyDeveloperConnector: ThirdPartyDeveloperConnector,
+                                 val apiPlatformMicroserviceConnector: ApiPlatformMicroserviceConnector,
                                  val sessionService: SessionService,
                                  val messagesApi: MessagesApi,
                                  val errorHandler: ErrorHandler,
@@ -39,11 +41,16 @@ class EmailPreferences @Inject()(val thirdPartyDeveloperConnector: ThirdPartyDev
   }
 
   def taxRegimeSelectionPage: Action[AnyContent] = loggedInAction { implicit request =>
-    Future.successful(Ok(taxRegimeSelection()))
+    emailPreferenceSelections.map { selections =>
+      Ok(taxRegimeSelection(selections))
+    }
+
   }
 
   def serviceSelectionPage: Action[AnyContent] = loggedInAction { implicit request =>
-    Future.successful(Ok(serviceSelection()))
+    emailPreferenceSelections.map { selections =>
+      Ok(serviceSelection(selections))
+    }
   }
 
   def topicSelectionPage: Action[AnyContent] = loggedInAction { implicit request =>
@@ -53,4 +60,14 @@ class EmailPreferences @Inject()(val thirdPartyDeveloperConnector: ThirdPartyDev
   def emailPreferencesCompletePage: Action[AnyContent] = loggedInAction { implicit request =>
     Future.successful(Ok(confirmation()))
   }
+
+  private def emailPreferenceSelections()(implicit request: UserRequest[AnyContent]): Future[EmailPreferenceSelections] = {
+    apiPlatformMicroserviceConnector.fetchApiDefinitionsForCollaborator(request.developerSession.email)
+      .map(servicesAvailable => EmailPreferenceSelections(servicesAvailable, Map.empty, Set.empty))
+  }
 }
+
+case class EmailPreferenceSelections(servicesAvailableToUser: Map[APICategory, Set[String]],
+                                     servicesSelected: Map[APICategory, Set[String]],
+                                     topicsSelected: Set[String])
+

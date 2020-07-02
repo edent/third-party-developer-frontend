@@ -23,17 +23,18 @@ import play.api.libs.json.{Format, Json}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import cats.implicits._
+import config.ApplicationConfig
 import model.APICategory
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class ApiPlatformMicroserviceConnector @Inject()(config: ApiPlatformMicroserviceConnectorConfig, http: HttpClient)(implicit ec: ExecutionContext) {
+class ApiPlatformMicroserviceConnector @Inject()(config: ApplicationConfig, http: HttpClient)(implicit ec: ExecutionContext) {
 
   def fetchApiDefinitionsForCollaborator(collaboratorEmail: String): Future[Map[APICategory, Set[String]]] = {
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
-    http.GET[Seq[APIDefinition]](s"${config.baseUrl}/combined-api-definitions", Seq("collaboratorEmail" -> collaboratorEmail))
+    http.GET[Seq[APIDefinition]](s"${config.apiPlatformMicroserviceUrl}/combined-api-definitions", Seq("collaboratorEmail" -> collaboratorEmail))
       .map(servicesByCategory)
   }
 }
@@ -54,5 +55,3 @@ object ApiPlatformMicroserviceConnector {
       .fold(Map.empty)(_ combine _)
   }
 }
-
-case class ApiPlatformMicroserviceConnectorConfig(baseUrl: String)

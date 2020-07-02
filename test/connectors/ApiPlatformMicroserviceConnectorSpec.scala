@@ -16,6 +16,7 @@
 
 package connectors
 
+import config.ApplicationConfig
 import connectors.ApiPlatformMicroserviceConnector.APIDefinition
 import model.APICategory._
 import org.mockito.ArgumentMatchers.{any, eq => meq}
@@ -36,12 +37,14 @@ class ApiPlatformMicroserviceConnectorSpec extends UnitSpec with ScalaFutures wi
     implicit val hc: HeaderCarrier = HeaderCarrier()
     val mockHttp: HttpClient = mock[HttpClient]
     val baseUrl = "http://api-platform-microservice"
-    val config = ApiPlatformMicroserviceConnectorConfig(baseUrl)
     val devEmail = "joe.bloggs@example.com"
 
     def endpoint(path: String) = s"$baseUrl/$path"
 
-    val connector = new ApiPlatformMicroserviceConnector(config, mockHttp)
+    val mockAppConfig: ApplicationConfig = mock[ApplicationConfig]
+    when(mockAppConfig.apiPlatformMicroserviceUrl).thenReturn(baseUrl)
+
+    val connector = new ApiPlatformMicroserviceConnector(mockAppConfig, mockHttp)
 
   }
 

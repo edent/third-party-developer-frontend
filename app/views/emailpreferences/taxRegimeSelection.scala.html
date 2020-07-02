@@ -19,7 +19,9 @@
 @import domain.{BackButtonWithJavaScript, DeveloperSession}
 
 @import uk.gov.hmrc.urls.Link
-@()(implicit messages: Messages, loggedIn: DeveloperSession, request: play.api.mvc.Request[Any], appConfig: ApplicationConfig)
+@import model.APICategory.APICategory
+
+@(emailPreferenceSelections: EmailPreferenceSelections)(implicit messages: Messages, loggedIn: DeveloperSession, request: play.api.mvc.Request[Any], appConfig: ApplicationConfig)
 
 @devMain(
     title = "Tax Regimes",
@@ -28,9 +30,26 @@
     developerSession = Some(loggedIn)
 ) {
 
-    <h1 class="heading-large">What are you interested in?</h1>
+    <div>
+        <legend>
+            <h1 class="govuk-fieldset-heading">What are you interested in?</h1>
+        </legend>
 
-    <p>Select all that apply.</p>
+        <p>Select all that apply.</p>
+    </div>
+
+    <div class="form-group">
+        <form method="post" class="js-form" autocomplete="off" novalidate="novalidate" id="registration-form">
+            <div class="form">
+            @for(regime <- emailPreferenceSelections.servicesAvailableToUser.keySet.toSeq.sortBy(_.displayName)) {
+                <div class="multiple-choice">
+                    <input id="@regime" type="checkbox" name="type" value="@regime">
+                    <label for="@regime">@regime.displayName</label>
+                </div>
+            }
+            </div>
+        </form>
+    </div>
 
     <a href="@routes.EmailPreferences.serviceSelectionPage()" class="button">Continue</a>
 }
