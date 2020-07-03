@@ -95,4 +95,28 @@ class EmailPreferenceSelectionsRepositorySpec
       retrievedRecord.isDefined should be (false)
     }
   }
+
+  "deleteByEmail" should {
+    "remove record and return true on successful deletion" in {
+      val matchingEmail = "foo@bar.com"
+      val matchingRecord = EmailPreferenceSelections(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty)
+
+      await(emailPreferenceSelectionsRepository
+        .bulkInsert(
+          Seq(
+            matchingRecord,
+            EmailPreferenceSelections("nonmatching@foo.com", List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty))))
+
+      val result = await(emailPreferenceSelectionsRepository.deleteByEmail(matchingEmail))
+
+      result should be (true)
+      await(emailPreferenceSelectionsRepository.fetchByEmail(matchingEmail)) should be (None)
+    }
+
+    "return true if record does not exist" in {
+      val result = await(emailPreferenceSelectionsRepository.deleteByEmail("nonmatching@foo.com"))
+
+      result should be (true)
+    }
+  }
 }

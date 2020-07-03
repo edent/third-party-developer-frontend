@@ -42,4 +42,8 @@ class EmailPreferenceSelectionsRepository @Inject()(mongo: ReactiveMongoComponen
   def fetchByEmail(email: String): Future[Option[EmailPreferenceSelections]] =
     find("email" -> email)
       .map(_.headOption)
+
+  def deleteByEmail(email: String): Future[Boolean] =
+    remove("email" -> email)
+      .map(_.ok)
 }
