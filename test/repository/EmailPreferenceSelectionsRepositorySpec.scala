@@ -18,6 +18,8 @@ package repository
 
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
+import controllers.{EmailPreferenceSelections, TaxRegimeServices}
+import model.APICategory
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, OptionValues, WordSpec}
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
 import play.modules.reactivemongo.ReactiveMongoComponent
@@ -61,12 +63,36 @@ class EmailPreferenceSelectionsRepositorySpec
 
     "have all the current indexes" in {
       val expectedIndexes = Set(
-        Index(key = List("email" -> Ascending), name = Some("emailIndex"), unique = true, background = true)
+        Index(key = List("email" -> Ascending), name = Some("emailIndex"), unique = true)
       )
 
       val actualIndexes = await(emailPreferenceSelectionsRepository.collection.indexesManager.list()).toSet
 
       actualIndexes.map(toIndexComparison) should contain allElementsOf expectedIndexes.map(toIndexComparison)
+    }
+  }
+
+  "fetchByEmail" should {
+    "retrieve the matching record if it exists" in {
+      val matchingEmail = "foo@bar.com"
+      val matchingRecord = EmailPreferenceSelections(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty)
+
+      await(emailPreferenceSelectionsRepository
+        .bulkInsert(
+          Seq(
+            matchingRecord,
+            EmailPreferenceSelections("nonmatching@foo.com", List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty))))
+
+      val retrievedRecord = await(emailPreferenceSelectionsRepository.fetchByEmail(matchingEmail))
+
+      retrievedRecord.isDefined should be (true)
+      retrievedRecord.get should be (matchingRecord)
+    }
+
+    "return None if record does not exists" in {
+      val retrievedRecord = await(emailPreferenceSelectionsRepository.fetchByEmail("nonmatching@foo.com"))
+
+      retrievedRecord.isDefined should be (false)
     }
   }
 }
