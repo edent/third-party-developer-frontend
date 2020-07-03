@@ -19,7 +19,7 @@
 @import domain.{BackButtonWithJavaScript, DeveloperSession}
 
 @import uk.gov.hmrc.urls.Link
-@(emailPreferenceSelections: EmailPreferenceSelections)(implicit messages: Messages, loggedIn: DeveloperSession, request: play.api.mvc.Request[Any], appConfig: ApplicationConfig)
+@(userEmailPreferences: UserEmailPreferences)(implicit messages: Messages, loggedIn: DeveloperSession, request: play.api.mvc.Request[Any], appConfig: ApplicationConfig)
 
 @devMain(
     title = "Services",

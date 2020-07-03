@@ -18,13 +18,15 @@ package repository
 
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
-import controllers.{EmailPreferenceSelections, TaxRegimeServices}
 import model.APICategory
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, OptionValues, WordSpec}
+import org.joda.time.DateTime
+import org.scalatest._
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.indexes.Index
 import reactivemongo.api.indexes.IndexType.Ascending
+import reactivemongo.bson.{BSONDocument, BSONLong}
+import repository.EmailPreferenceSelectionsRepository.{EmailPreferenceSelections, TaxRegimeServices}
 import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -46,15 +48,15 @@ class EmailPreferenceSelectionsRepositorySpec
     override def mongoConnector: MongoConnector = mongoConnectorForTest
   }
 
-  private val emailPreferenceSelectionsRepository = new EmailPreferenceSelectionsRepository(reactiveMongoComponent)
+  private val repositoryUnderTest = new EmailPreferenceSelectionsRepository(reactiveMongoComponent)
 
   override def beforeEach() {
-    await(emailPreferenceSelectionsRepository.drop)
-    await(emailPreferenceSelectionsRepository.ensureIndexes)
+    await(repositoryUnderTest.drop)
+    await(repositoryUnderTest.ensureIndexes)
   }
 
   override protected def afterAll() {
-    await(emailPreferenceSelectionsRepository.drop)
+    await(repositoryUnderTest.drop)
   }
 
   "The 'emailPreferenceSelections' collection" should {
@@ -63,10 +65,15 @@ class EmailPreferenceSelectionsRepositorySpec
 
     "have all the current indexes" in {
       val expectedIndexes = Set(
-        Index(key = List("email" -> Ascending), name = Some("emailIndex"), unique = true)
+        Index(key = List("email" -> Ascending), name = Some("emailIndex"), unique = true),
+        Index(
+          key = List("lastUpdate" -> Ascending),
+          name = Some("expiryIndex"),
+          background = true,
+          options = BSONDocument("expireAfterSeconds" -> BSONLong(1800)))
       )
 
-      val actualIndexes = await(emailPreferenceSelectionsRepository.collection.indexesManager.list()).toSet
+      val actualIndexes = await(repositoryUnderTest.collection.indexesManager.list()).toSet
 
       actualIndexes.map(toIndexComparison) should contain allElementsOf expectedIndexes.map(toIndexComparison)
     }
@@ -75,22 +82,18 @@ class EmailPreferenceSelectionsRepositorySpec
   "fetchByEmail" should {
     "retrieve the matching record if it exists" in {
       val matchingEmail = "foo@bar.com"
-      val matchingRecord = EmailPreferenceSelections(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty)
+      val matchingRecord = newRecord(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))))
 
-      await(emailPreferenceSelectionsRepository
-        .bulkInsert(
-          Seq(
-            matchingRecord,
-            EmailPreferenceSelections("nonmatching@foo.com", List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty))))
+      await(repositoryUnderTest.bulkInsert(Seq(matchingRecord, newRecord("nonmatching@foo.com"))))
 
-      val retrievedRecord = await(emailPreferenceSelectionsRepository.fetchByEmail(matchingEmail))
+      val retrievedRecord = await(repositoryUnderTest.fetchByEmail(matchingEmail))
 
       retrievedRecord.isDefined should be (true)
       retrievedRecord.get should be (matchingRecord)
     }
 
     "return None if record does not exists" in {
-      val retrievedRecord = await(emailPreferenceSelectionsRepository.fetchByEmail("nonmatching@foo.com"))
+      val retrievedRecord = await(repositoryUnderTest.fetchByEmail("nonmatching@foo.com"))
 
       retrievedRecord.isDefined should be (false)
     }
@@ -99,24 +102,27 @@ class EmailPreferenceSelectionsRepositorySpec
   "deleteByEmail" should {
     "remove record and return true on successful deletion" in {
       val matchingEmail = "foo@bar.com"
-      val matchingRecord = EmailPreferenceSelections(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty)
+      val matchingRecord = newRecord(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))))
 
-      await(emailPreferenceSelectionsRepository
-        .bulkInsert(
-          Seq(
-            matchingRecord,
-            EmailPreferenceSelections("nonmatching@foo.com", List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))), List.empty, Set.empty))))
+      await(repositoryUnderTest.bulkInsert(Seq(matchingRecord, newRecord("nonmatching@foo.com"))))
 
-      val result = await(emailPreferenceSelectionsRepository.deleteByEmail(matchingEmail))
+      val result = await(repositoryUnderTest.deleteByEmail(matchingEmail))
 
       result should be (true)
-      await(emailPreferenceSelectionsRepository.fetchByEmail(matchingEmail)) should be (None)
+      await(repositoryUnderTest.fetchByEmail(matchingEmail)) should be (None)
     }
 
     "return true if record does not exist" in {
-      val result = await(emailPreferenceSelectionsRepository.deleteByEmail("nonmatching@foo.com"))
+      val result = await(repositoryUnderTest.deleteByEmail("nonmatching@foo.com"))
 
       result should be (true)
     }
   }
+
+  private[repository] def newRecord(email:String,
+                servicesAvailableToUser: List[TaxRegimeServices] = List.empty,
+                servicesSelected: List[TaxRegimeServices] = List.empty,
+                topicsSelected: Set[String] = Set.empty,
+                lastUpdate: DateTime = DateTime.now): EmailPreferenceSelections =
+    EmailPreferenceSelections(email, servicesAvailableToUser, servicesSelected, topicsSelected, lastUpdate)
 }

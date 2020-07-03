@@ -18,10 +18,9 @@
 @import include._
 @import domain.{BackButtonWithJavaScript, DeveloperSession}
 
-@import uk.gov.hmrc.urls.Link
 @import model.APICategory.APICategory
 
-@(emailPreferenceSelections: EmailPreferenceSelections)(implicit messages: Messages, loggedIn: DeveloperSession, request: play.api.mvc.Request[Any], appConfig: ApplicationConfig)
+@(availableTaxRegimes: Set[APICategory], selectedTaxRegimes: Set[APICategory])(implicit messages: Messages, loggedIn: DeveloperSession, request: play.api.mvc.Request[Any], appConfig: ApplicationConfig)
 
 @devMain(
     title = "Tax Regimes",
@@ -41,9 +40,9 @@
     <div class="form-group">
         <form method="post" class="js-form" autocomplete="off" novalidate="novalidate" id="registration-form">
             <div class="form">
-            @for(regime <- emailPreferenceSelections.servicesAvailableToUser.map(_.taxRegime).sortBy(_.displayName)) {
+            @for(regime <- availableTaxRegimes.toList.sortBy(_.displayName)) {
                 <div class="multiple-choice">
-                    <input id="@regime" type="checkbox" name="type" value="@regime">
+                    <input id="@regime" type="checkbox" name="tax-regime" value="@regime" @if(selectedTaxRegimes.contains(regime)){checked}>
                     <label for="@regime">@regime.displayName</label>
                 </div>
             }
