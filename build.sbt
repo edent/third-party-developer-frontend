@@ -38,7 +38,8 @@ lazy val compile = Seq(
   "com.beachape" %% "enumeratum" % enumeratumVersion,
   "com.beachape" %% "enumeratum-play" % enumeratumVersion,
   "com.google.zxing" % "core" % "3.2.1",
-  "org.typelevel" %% "cats-core" % "2.0.0"
+  "org.typelevel" %% "cats-core" % "2.0.0",
+  "uk.gov.hmrc" %% "simple-reactivemongo" % "7.29.0-play-25"
 )
 
 val testScope = "test, it"
@@ -63,7 +64,8 @@ lazy val test = Seq(
     "batik" % "batik-script" % "1.6-1" % testScope exclude("batik", "batik-bridge"),
   "net.masterthought" % "cucumber-reporting" % "3.3.0" % testScope,
   "net.masterthought" % "cucumber-sandwich" % "3.3.0" % testScope,
-  "com.assertthat" % "selenium-shutterbug" % "0.2" % testScope
+  "com.assertthat" % "selenium-shutterbug" % "0.2" % testScope,
+  "uk.gov.hmrc" %% "reactivemongo-test" % "4.20.0-play-25" % testScope
 )
 lazy val overrideDependencies = Set(
   "org.seleniumhq.selenium" % "selenium-java" % seleniumVersion % testScope,

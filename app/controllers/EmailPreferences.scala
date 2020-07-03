@@ -19,9 +19,11 @@ package controllers
 import config.{ApplicationConfig, ErrorHandler}
 import connectors.{ApiPlatformMicroserviceConnector, ThirdPartyDeveloperConnector}
 import javax.inject.Inject
+import model.APICategory
 import model.APICategory.APICategory
 import play.api.i18n.MessagesApi
 import play.api.libs.crypto.CookieSigner
+import play.api.libs.json.{Format, JsString, JsSuccess, JsValue, Json, Reads, Writes}
 import play.api.mvc.{Action, AnyContent, Result}
 import service.SessionService
 import views.html.emailpreferences.{confirmation, emailPreferences, serviceSelection, taxRegimeSelection, topicSelection}
@@ -62,12 +64,33 @@ class EmailPreferences @Inject()(val thirdPartyDeveloperConnector: ThirdPartyDev
   }
 
   private def emailPreferenceSelections()(implicit request: UserRequest[AnyContent]): Future[EmailPreferenceSelections] = {
-    apiPlatformMicroserviceConnector.fetchApiDefinitionsForCollaborator(request.developerSession.email)
-      .map(servicesAvailable => EmailPreferenceSelections(servicesAvailable, Map.empty, Set.empty))
+    val userEmail = request.developerSession.email
+
+    apiPlatformMicroserviceConnector.fetchApiDefinitionsForCollaborator(userEmail)
+      .map(servicesAvailable =>
+        EmailPreferenceSelections(
+          userEmail,
+          servicesAvailableToUser = servicesAvailable.map(regime => TaxRegimeServices(regime._1, regime._2)).toList,
+          servicesSelected = List.empty,
+          topicsSelected = Set.empty))
   }
 }
 
-case class EmailPreferenceSelections(servicesAvailableToUser: Map[APICategory, Set[String]],
-                                     servicesSelected: Map[APICategory, Set[String]],
+case class TaxRegimeServices(taxRegime: APICategory, services: Set[String])
+object TaxRegimeServices {
+  val apiCategoryReads: Reads[APICategory] = Reads(j => JsSuccess(APICategory.withName(j.as[String])))
+  val apiCategoryWrites: Writes[APICategory] = Writes(a => JsString(a.toString))
+
+  implicit val apiCategoryFormat: Format[APICategory] = Format(apiCategoryReads, apiCategoryWrites)
+  implicit val format = Json.format[TaxRegimeServices]
+}
+
+case class EmailPreferenceSelections(email:String,
+                                     servicesAvailableToUser: List[TaxRegimeServices],
+                                     servicesSelected: List[TaxRegimeServices],
                                      topicsSelected: Set[String])
 
+object EmailPreferenceSelections {
+  implicit val emailPreferenceSelectionsFormat: Format[EmailPreferenceSelections] =
+    Format(Json.reads[EmailPreferenceSelections], Json.writes[EmailPreferenceSelections])
+}

@@ -41,7 +41,7 @@
     <div class="form-group">
         <form method="post" class="js-form" autocomplete="off" novalidate="novalidate" id="registration-form">
             <div class="form">
-            @for(regime <- emailPreferenceSelections.servicesAvailableToUser.keySet.toSeq.sortBy(_.displayName)) {
+            @for(regime <- emailPreferenceSelections.servicesAvailableToUser.map(_.taxRegime).sortBy(_.displayName)) {
                 <div class="multiple-choice">
                     <input id="@regime" type="checkbox" name="type" value="@regime">
                     <label for="@regime">@regime.displayName</label>
