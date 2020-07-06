@@ -16,7 +16,6 @@
 
 package controllers
 
-import controllers.UserEmailPreferences.fromRepositoryModel
 import config.{ApplicationConfig, ErrorHandler}
 import connectors.{ApiPlatformMicroserviceConnector, ThirdPartyDeveloperConnector}
 import domain.Developer
@@ -27,7 +26,6 @@ import play.api.i18n.MessagesApi
 import play.api.libs.crypto.CookieSigner
 import play.api.mvc.{Action, AnyContent}
 import repository.EmailPreferenceSelectionsRepository
-import repository.EmailPreferenceSelectionsRepository.{EmailPreferenceSelections, TaxRegimeServices}
 import service.SessionService
 import uk.gov.hmrc.http.HeaderCarrier
 import views.html.emailpreferences._
@@ -53,6 +51,12 @@ class EmailPreferences @Inject()(val emailPreferenceSelectionsRepository: EmailP
     }
   }
 
+//  def taxRegimesSelectedAction: Action[AnyContent] = loggedInAction { implicit request =>
+//    val requestForm: Form[TaxRegimeEmailPreferencesForm] = TaxRegimeEmailPreferencesForm.form.bindFromRequest
+//    val
+//    userEmailPreferences(request.developerSession.email)
+//  }
+
   def serviceSelectionPage: Action[AnyContent] = loggedInAction { implicit request =>
     userEmailPreferences(request.developerSession.email).map { userEmailPreferences =>
       Ok(serviceSelection(userEmailPreferences))
@@ -68,9 +72,9 @@ class EmailPreferences @Inject()(val emailPreferenceSelectionsRepository: EmailP
   }
 
   private def userEmailPreferences(userEmail: String): Future[UserEmailPreferences] =
-    emailPreferenceSelectionsRepository.fetchByEmail(userEmail, fromRepositoryModel)
+    emailPreferenceSelectionsRepository.fetchByEmail(userEmail)
       .flatMap(localUserEmailPreferences =>
-        if(localUserEmailPreferences.isDefined) Future.successful(localUserEmailPreferences.head) else userEmailPreferencesFromSourceServices(userEmail))
+        if (localUserEmailPreferences.isDefined) Future.successful(localUserEmailPreferences.head) else userEmailPreferencesFromSourceServices(userEmail))
 
   private def userEmailPreferencesFromSourceServices(userEmail: String): Future[UserEmailPreferences] = {
     val servicesAvailableToUser: Future[Map[APICategory, Set[String]]] = apiPlatformMicroserviceConnector.fetchApiDefinitionsForCollaborator(userEmail)
@@ -79,11 +83,12 @@ class EmailPreferences @Inject()(val emailPreferenceSelectionsRepository: EmailP
     for {
       userServices <- servicesAvailableToUser
       userServicesSelected <- userDetails
-    } yield
-      UserEmailPreferences(
+      userEmailPreferences = UserEmailPreferences(
         servicesAvailableToUser = userServices,
         servicesSelected = userServicesSelected.get.emailPreferences.interests.map(t => (APICategory.withName(t.regime), t.services)).toMap,
         topicsSelected = userServicesSelected.get.emailPreferences.topics.map(_.toString))
+      _ <- emailPreferenceSelectionsRepository.save(userEmail, userEmailPreferences) // Store in local repository for later
+    } yield userEmailPreferences
   }
 }
 
@@ -91,21 +96,6 @@ case class UserEmailPreferences(servicesAvailableToUser: Map[APICategory, Set[St
                                 servicesSelected: Map[APICategory, Set[String]],
                                 topicsSelected: Set[String]) {
 
-
   def availableTaxRegimes: Set[APICategory] = servicesAvailableToUser.keys.toSet
   def selectedTaxRegimes: Set[APICategory] = servicesSelected.keys.toSet
-}
-
-object UserEmailPreferences {
-  def fromRepositoryModel: EmailPreferenceSelections => UserEmailPreferences = { emailPreferencesSelection =>
-    def regimesAndServicesAsMap(regimesAndServices: List[TaxRegimeServices]): Map[APICategory, Set[String]] =
-      regimesAndServices
-        .map(t => (t.taxRegime, t.services))
-        .toMap
-
-    UserEmailPreferences(
-      regimesAndServicesAsMap(emailPreferencesSelection.servicesAvailableToUser),
-      regimesAndServicesAsMap(emailPreferencesSelection.servicesSelected),
-      emailPreferencesSelection.topicsSelected)
-  }
 }

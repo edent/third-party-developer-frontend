@@ -17,6 +17,7 @@
 package repository
 
 import akka.stream.Materializer
+import controllers.UserEmailPreferences
 import javax.inject.{Inject, Singleton}
 import model.APICategory
 import model.APICategory.APICategory
@@ -27,6 +28,7 @@ import reactivemongo.api.indexes.Index
 import reactivemongo.api.indexes.IndexType.Ascending
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import repository.EmailPreferenceSelectionsRepository.EmailPreferenceSelections
+import repository.EmailPreferenceSelectionsRepository.{toModel, fromModel}
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
@@ -49,11 +51,15 @@ class EmailPreferenceSelectionsRepository @Inject()(mongo: ReactiveMongoComponen
       options = BSONDocument("expireAfterSeconds" -> BSONLong(1800)))
   )
 
-  def fetchByEmail[A](email: String, transform: EmailPreferenceSelections => A): Future[Option[A]] =
+  def save(email: String, userEmailPreferences: UserEmailPreferences): Future[Boolean] =
+    insert(fromModel(email, userEmailPreferences))
+      .map(_.ok)
+
+  def fetchByEmail(email: String): Future[Option[UserEmailPreferences]] =
     find("email" -> email)
       .map(_.headOption)
       .map {
-        case Some(selections) => Some(transform(selections))
+        case Some(selections) => Some(toModel(selections))
         case _ => None
       }
 
@@ -63,7 +69,7 @@ class EmailPreferenceSelectionsRepository @Inject()(mongo: ReactiveMongoComponen
 }
 
 object EmailPreferenceSelectionsRepository {
-  case class TaxRegimeServices(taxRegime: APICategory, services: Set[String])
+  private[repository] case class TaxRegimeServices(taxRegime: APICategory, services: Set[String])
   object TaxRegimeServices {
     val apiCategoryReads: Reads[APICategory] = Reads(j => JsSuccess(APICategory.withName(j.as[String])))
     val apiCategoryWrites: Writes[APICategory] = Writes(a => JsString(a.toString))
@@ -72,7 +78,7 @@ object EmailPreferenceSelectionsRepository {
     implicit val format = Json.format[TaxRegimeServices]
   }
 
-  case class EmailPreferenceSelections(email:String,
+  private[repository] case class EmailPreferenceSelections(email:String,
                                                            servicesAvailableToUser: List[TaxRegimeServices],
                                                            servicesSelected: List[TaxRegimeServices],
                                                            topicsSelected: Set[String],
@@ -81,5 +87,31 @@ object EmailPreferenceSelectionsRepository {
   object EmailPreferenceSelections {
     implicit val emailPreferenceSelectionsFormat: Format[EmailPreferenceSelections] =
       Format(Json.reads[EmailPreferenceSelections], Json.writes[EmailPreferenceSelections])
+  }
+
+  def toModel: EmailPreferenceSelections => UserEmailPreferences = { emailPreferencesSelection =>
+    def regimesAndServicesAsMap(regimesAndServices: List[TaxRegimeServices]): Map[APICategory, Set[String]] =
+      regimesAndServices
+        .map(t => (t.taxRegime, t.services))
+        .toMap
+
+    UserEmailPreferences(
+      regimesAndServicesAsMap(emailPreferencesSelection.servicesAvailableToUser),
+      regimesAndServicesAsMap(emailPreferencesSelection.servicesSelected),
+      emailPreferencesSelection.topicsSelected)
+  }
+
+  def fromModel(userEmail: String, userEmailPreferences: UserEmailPreferences): EmailPreferenceSelections = {
+    def regimesAndServicesAsList(regimesAndServices: Map[APICategory, Set[String]]): List[TaxRegimeServices] =
+      regimesAndServices
+        .map(t => TaxRegimeServices(t._1, t._2))
+        .toList
+
+    EmailPreferenceSelections(
+      userEmail,
+      regimesAndServicesAsList(userEmailPreferences.servicesAvailableToUser),
+      regimesAndServicesAsList(userEmailPreferences.servicesSelected),
+      userEmailPreferences.topicsSelected,
+      DateTime.now)
   }
 }

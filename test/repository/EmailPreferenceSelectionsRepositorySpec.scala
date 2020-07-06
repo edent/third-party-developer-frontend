@@ -18,6 +18,7 @@ package repository
 
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
+import controllers.UserEmailPreferences
 import model.APICategory
 import org.joda.time.DateTime
 import org.scalatest._
@@ -88,14 +89,15 @@ class EmailPreferenceSelectionsRepositorySpec
 
       await(repositoryUnderTest.bulkInsert(Seq(matchingRecord, newRecord("nonmatching@foo.com"))))
 
-      val retrievedRecord = await(repositoryUnderTest.fetchByEmail(matchingEmail, asRepositoryRecord))
+      val retrievedRecord: Option[UserEmailPreferences] = await(repositoryUnderTest.fetchByEmail(matchingEmail))
 
       retrievedRecord.isDefined should be (true)
-      retrievedRecord.get should be (matchingRecord)
+      retrievedRecord.get.servicesAvailableToUser.keys should contain only APICategory.CUSTOMS
+      retrievedRecord.get.servicesAvailableToUser(APICategory.CUSTOMS) should contain only "cds-api-1"
     }
 
     "return None if record does not exists" in {
-      val retrievedRecord = await(repositoryUnderTest.fetchByEmail("nonmatching@foo.com", asRepositoryRecord))
+      val retrievedRecord = await(repositoryUnderTest.fetchByEmail("nonmatching@foo.com"))
 
       retrievedRecord.isDefined should be (false)
     }
@@ -111,7 +113,7 @@ class EmailPreferenceSelectionsRepositorySpec
       val result = await(repositoryUnderTest.deleteByEmail(matchingEmail))
 
       result should be (true)
-      await(repositoryUnderTest.fetchByEmail(matchingEmail, asRepositoryRecord)) should be (None)
+      await(repositoryUnderTest.fetchByEmail(matchingEmail)) should be (None)
     }
 
     "return true if record does not exist" in {
@@ -120,8 +122,6 @@ class EmailPreferenceSelectionsRepositorySpec
       result should be (true)
     }
   }
-
-  private[repository] def asRepositoryRecord: EmailPreferenceSelections => EmailPreferenceSelections = e => e
 
   private[repository] def newRecord(email:String,
                 servicesAvailableToUser: List[TaxRegimeServices] = List.empty,
