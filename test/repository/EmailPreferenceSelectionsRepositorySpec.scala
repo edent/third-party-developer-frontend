@@ -80,20 +80,22 @@ class EmailPreferenceSelectionsRepositorySpec
   }
 
   "fetchByEmail" should {
+
+
     "retrieve the matching record if it exists" in {
       val matchingEmail = "foo@bar.com"
       val matchingRecord = newRecord(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))))
 
       await(repositoryUnderTest.bulkInsert(Seq(matchingRecord, newRecord("nonmatching@foo.com"))))
 
-      val retrievedRecord = await(repositoryUnderTest.fetchByEmail(matchingEmail))
+      val retrievedRecord = await(repositoryUnderTest.fetchByEmail(matchingEmail, asRepositoryRecord))
 
       retrievedRecord.isDefined should be (true)
       retrievedRecord.get should be (matchingRecord)
     }
 
     "return None if record does not exists" in {
-      val retrievedRecord = await(repositoryUnderTest.fetchByEmail("nonmatching@foo.com"))
+      val retrievedRecord = await(repositoryUnderTest.fetchByEmail("nonmatching@foo.com", asRepositoryRecord))
 
       retrievedRecord.isDefined should be (false)
     }
@@ -109,7 +111,7 @@ class EmailPreferenceSelectionsRepositorySpec
       val result = await(repositoryUnderTest.deleteByEmail(matchingEmail))
 
       result should be (true)
-      await(repositoryUnderTest.fetchByEmail(matchingEmail)) should be (None)
+      await(repositoryUnderTest.fetchByEmail(matchingEmail, asRepositoryRecord)) should be (None)
     }
 
     "return true if record does not exist" in {
@@ -118,6 +120,8 @@ class EmailPreferenceSelectionsRepositorySpec
       result should be (true)
     }
   }
+
+  private[repository] def asRepositoryRecord: EmailPreferenceSelections => EmailPreferenceSelections = e => e
 
   private[repository] def newRecord(email:String,
                 servicesAvailableToUser: List[TaxRegimeServices] = List.empty,

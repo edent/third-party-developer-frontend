@@ -17,11 +17,11 @@
 package repository
 
 import akka.stream.Materializer
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import model.APICategory
 import model.APICategory.APICategory
-import org.joda.time.{DateTime, Duration}
-import play.api.libs.json.{Format, JsString, JsSuccess, Json, Reads, Writes}
+import org.joda.time.DateTime
+import play.api.libs.json._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.indexes.Index
 import reactivemongo.api.indexes.IndexType.Ascending
@@ -32,6 +32,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class EmailPreferenceSelectionsRepository @Inject()(mongo: ReactiveMongoComponent)(implicit val mat: Materializer, val ec: ExecutionContext)
   extends ReactiveRepository[EmailPreferenceSelections, BSONObjectID](
       "emailPreferenceSelections",
@@ -48,9 +49,13 @@ class EmailPreferenceSelectionsRepository @Inject()(mongo: ReactiveMongoComponen
       options = BSONDocument("expireAfterSeconds" -> BSONLong(1800)))
   )
 
-  def fetchByEmail(email: String): Future[Option[EmailPreferenceSelections]] =
+  def fetchByEmail[A](email: String, transform: EmailPreferenceSelections => A): Future[Option[A]] =
     find("email" -> email)
       .map(_.headOption)
+      .map {
+        case Some(selections) => Some(transform(selections))
+        case _ => None
+      }
 
   def deleteByEmail(email: String): Future[Boolean] =
     remove("email" -> email)
@@ -58,7 +63,7 @@ class EmailPreferenceSelectionsRepository @Inject()(mongo: ReactiveMongoComponen
 }
 
 object EmailPreferenceSelectionsRepository {
-  private[repository] case class TaxRegimeServices(taxRegime: APICategory, services: Set[String])
+  case class TaxRegimeServices(taxRegime: APICategory, services: Set[String])
   object TaxRegimeServices {
     val apiCategoryReads: Reads[APICategory] = Reads(j => JsSuccess(APICategory.withName(j.as[String])))
     val apiCategoryWrites: Writes[APICategory] = Writes(a => JsString(a.toString))
@@ -67,7 +72,7 @@ object EmailPreferenceSelectionsRepository {
     implicit val format = Json.format[TaxRegimeServices]
   }
 
-  private[repository] case class EmailPreferenceSelections(email:String,
+  case class EmailPreferenceSelections(email:String,
                                                            servicesAvailableToUser: List[TaxRegimeServices],
                                                            servicesSelected: List[TaxRegimeServices],
                                                            topicsSelected: Set[String],

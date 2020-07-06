@@ -19,6 +19,7 @@ package domain
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
+import enumeratum.{Enum, EnumEntry, PlayJsonEnum}
 import play.api.libs.json.{Format, Json}
 
 case class DeveloperSession(session: Session) {
@@ -52,12 +53,37 @@ object DeveloperSession {
   }
 }
 
+case class TaxRegimeInterests(regime: String, services: Set[String])
+object TaxRegimeInterests {
+  implicit val format = Json.format[TaxRegimeInterests]
+}
+
+case class EmailPreferences(interests: List[TaxRegimeInterests], topics: Set[EmailTopic])
+object EmailPreferences {
+  implicit val format = Json.format[EmailPreferences]
+
+  def noPreferences: EmailPreferences = EmailPreferences(List.empty, Set.empty)
+}
+
+sealed trait EmailTopic extends EnumEntry
+
+object EmailTopic extends Enum[EmailTopic] with PlayJsonEnum[EmailTopic] {
+
+  val values = findValues
+
+  case object BUSINESS_AND_POLICY extends EmailTopic
+  case object TECHNICAL extends EmailTopic
+  case object RELEASE_SCHEDULES extends EmailTopic
+  case object EVENT_INVITES extends EmailTopic
+}
+
 case class Developer(
     email: String,
     firstName: String,
     lastName: String,
     organisation: Option[String] = None,
-    mfaEnabled: Option[Boolean] = None
+    mfaEnabled: Option[Boolean] = None,
+    emailPreferences: EmailPreferences = EmailPreferences.noPreferences
 )
 
 object Developer {

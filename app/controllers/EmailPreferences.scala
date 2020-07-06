@@ -16,19 +16,26 @@
 
 package controllers
 
+import controllers.UserEmailPreferences.fromRepositoryModel
 import config.{ApplicationConfig, ErrorHandler}
 import connectors.{ApiPlatformMicroserviceConnector, ThirdPartyDeveloperConnector}
+import domain.Developer
 import javax.inject.Inject
+import model.APICategory
 import model.APICategory.APICategory
 import play.api.i18n.MessagesApi
 import play.api.libs.crypto.CookieSigner
 import play.api.mvc.{Action, AnyContent}
+import repository.EmailPreferenceSelectionsRepository
+import repository.EmailPreferenceSelectionsRepository.{EmailPreferenceSelections, TaxRegimeServices}
 import service.SessionService
+import uk.gov.hmrc.http.HeaderCarrier
 import views.html.emailpreferences._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class EmailPreferences @Inject()(val thirdPartyDeveloperConnector: ThirdPartyDeveloperConnector,
+class EmailPreferences @Inject()(val emailPreferenceSelectionsRepository: EmailPreferenceSelectionsRepository,
+                                 val thirdPartyDeveloperConnector: ThirdPartyDeveloperConnector,
                                  val apiPlatformMicroserviceConnector: ApiPlatformMicroserviceConnector,
                                  val sessionService: SessionService,
                                  val messagesApi: MessagesApi,
@@ -41,13 +48,13 @@ class EmailPreferences @Inject()(val thirdPartyDeveloperConnector: ThirdPartyDev
   }
 
   def taxRegimeSelectionPage: Action[AnyContent] = loggedInAction { implicit request =>
-    userEmailPreferences.map { userEmailPreferences =>
+    userEmailPreferences(request.developerSession.email).map { userEmailPreferences =>
       Ok(taxRegimeSelection(userEmailPreferences.availableTaxRegimes, userEmailPreferences.selectedTaxRegimes))
     }
   }
 
   def serviceSelectionPage: Action[AnyContent] = loggedInAction { implicit request =>
-    userEmailPreferences.map { userEmailPreferences =>
+    userEmailPreferences(request.developerSession.email).map { userEmailPreferences =>
       Ok(serviceSelection(userEmailPreferences))
     }
   }
@@ -60,15 +67,23 @@ class EmailPreferences @Inject()(val thirdPartyDeveloperConnector: ThirdPartyDev
     Future.successful(Ok(confirmation()))
   }
 
-  private def userEmailPreferences()(implicit request: UserRequest[AnyContent]): Future[UserEmailPreferences] = {
-    val userEmail = request.developerSession.email
+  private def userEmailPreferences(userEmail: String): Future[UserEmailPreferences] =
+    emailPreferenceSelectionsRepository.fetchByEmail(userEmail, fromRepositoryModel)
+      .flatMap(localUserEmailPreferences =>
+        if(localUserEmailPreferences.isDefined) Future.successful(localUserEmailPreferences.head) else userEmailPreferencesFromSourceServices(userEmail))
 
-    apiPlatformMicroserviceConnector.fetchApiDefinitionsForCollaborator(userEmail)
-      .map(servicesAvailable =>
-        UserEmailPreferences(
-          servicesAvailableToUser = servicesAvailable.map(regime => (regime._1, regime._2)),
-          servicesSelected = Map.empty,
-          topicsSelected = Set.empty))
+  private def userEmailPreferencesFromSourceServices(userEmail: String): Future[UserEmailPreferences] = {
+    val servicesAvailableToUser: Future[Map[APICategory, Set[String]]] = apiPlatformMicroserviceConnector.fetchApiDefinitionsForCollaborator(userEmail)
+    val userDetails: Future[Option[Developer]] = thirdPartyDeveloperConnector.fetchDeveloper(userEmail)(HeaderCarrier())
+
+    for {
+      userServices <- servicesAvailableToUser
+      userServicesSelected <- userDetails
+    } yield
+      UserEmailPreferences(
+        servicesAvailableToUser = userServices,
+        servicesSelected = userServicesSelected.get.emailPreferences.interests.map(t => (APICategory.withName(t.regime), t.services)).toMap,
+        topicsSelected = userServicesSelected.get.emailPreferences.topics.map(_.toString))
   }
 }
 
@@ -76,6 +91,21 @@ case class UserEmailPreferences(servicesAvailableToUser: Map[APICategory, Set[St
                                 servicesSelected: Map[APICategory, Set[String]],
                                 topicsSelected: Set[String]) {
 
+
   def availableTaxRegimes: Set[APICategory] = servicesAvailableToUser.keys.toSet
   def selectedTaxRegimes: Set[APICategory] = servicesSelected.keys.toSet
+}
+
+object UserEmailPreferences {
+  def fromRepositoryModel: EmailPreferenceSelections => UserEmailPreferences = { emailPreferencesSelection =>
+    def regimesAndServicesAsMap(regimesAndServices: List[TaxRegimeServices]): Map[APICategory, Set[String]] =
+      regimesAndServices
+        .map(t => (t.taxRegime, t.services))
+        .toMap
+
+    UserEmailPreferences(
+      regimesAndServicesAsMap(emailPreferencesSelection.servicesAvailableToUser),
+      regimesAndServicesAsMap(emailPreferencesSelection.servicesSelected),
+      emailPreferencesSelection.topicsSelected)
+  }
 }
