@@ -20,6 +20,7 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import controllers.UserEmailPreferences
 import model.APICategory
+import model.APICategory.{CUSTOMS, VAT_MTD, AGENTS}
 import org.joda.time.DateTime
 import org.scalatest._
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
@@ -82,18 +83,17 @@ class EmailPreferenceSelectionsRepositorySpec
 
   "fetchByEmail" should {
 
-
     "retrieve the matching record if it exists" in {
       val matchingEmail = "foo@bar.com"
-      val matchingRecord = newRecord(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))))
+      val matchingRecord = newRecord(matchingEmail, List(TaxRegimeServices(CUSTOMS, Set("cds-api-1"))))
 
       await(repositoryUnderTest.bulkInsert(Seq(matchingRecord, newRecord("nonmatching@foo.com"))))
 
       val retrievedRecord: Option[UserEmailPreferences] = await(repositoryUnderTest.fetchByEmail(matchingEmail))
 
       retrievedRecord.isDefined should be (true)
-      retrievedRecord.get.servicesAvailableToUser.keys should contain only APICategory.CUSTOMS
-      retrievedRecord.get.servicesAvailableToUser(APICategory.CUSTOMS) should contain only "cds-api-1"
+      retrievedRecord.get.servicesAvailableToUser.keys should contain only CUSTOMS
+      retrievedRecord.get.servicesAvailableToUser(CUSTOMS) should contain only "cds-api-1"
     }
 
     "return None if record does not exists" in {
@@ -106,7 +106,7 @@ class EmailPreferenceSelectionsRepositorySpec
   "deleteByEmail" should {
     "remove record and return true on successful deletion" in {
       val matchingEmail = "foo@bar.com"
-      val matchingRecord = newRecord(matchingEmail, List(TaxRegimeServices(APICategory.CUSTOMS, Set("cds-api-1"))))
+      val matchingRecord = newRecord(matchingEmail, List(TaxRegimeServices(CUSTOMS, Set("cds-api-1"))))
 
       await(repositoryUnderTest.bulkInsert(Seq(matchingRecord, newRecord("nonmatching@foo.com"))))
 
@@ -120,6 +120,44 @@ class EmailPreferenceSelectionsRepositorySpec
       val result = await(repositoryUnderTest.deleteByEmail("nonmatching@foo.com"))
 
       result should be (true)
+    }
+  }
+
+  "removeSelectedTaxRegimes" should {
+    "remove specified tax regimes from selected options" in {
+      val matchingEmail = "foo@bar.com"
+      val matchingRecord =
+        newRecord(
+          matchingEmail,
+          servicesSelected = List(TaxRegimeServices(CUSTOMS, Set("cds-api-1")), TaxRegimeServices(VAT_MTD, Set("vat-mtd-api-1"))),
+          lastUpdate = DateTime.now.minusDays(1))
+
+      await(repositoryUnderTest.insert(matchingRecord))
+
+      val result: UserEmailPreferences = await(repositoryUnderTest.removeSelectedTaxRegimes(matchingEmail, Set(VAT_MTD)))
+
+      result.servicesSelected.size should be (1)
+      result.servicesSelected.head._1 should be(CUSTOMS)
+    }
+  }
+
+  "addSelectedTaxRegimes" should {
+    "add specified tax regimes to selected options" in {
+      val matchingEmail = "foo@bar.com"
+      val matchingRecord =
+        newRecord(
+          matchingEmail,
+          servicesSelected = List(TaxRegimeServices(CUSTOMS, Set("cds-api-1"))),
+          lastUpdate = DateTime.now.minusDays(1))
+
+      await(repositoryUnderTest.insert(matchingRecord))
+
+      val result: UserEmailPreferences = await(repositoryUnderTest.addSelectedTaxRegimes(matchingEmail, Set(VAT_MTD, AGENTS)))
+
+      result.servicesSelected.size should be (3)
+      result.servicesSelected.find(_._1 == CUSTOMS).head._2 should be (Set("cds-api-1"))
+      result.servicesSelected.find(_._1 == VAT_MTD).head._2 should be (Set.empty)
+      result.servicesSelected.find(_._1 == AGENTS).head._2 should be (Set.empty)
     }
   }
 

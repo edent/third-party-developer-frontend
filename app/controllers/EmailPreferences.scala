@@ -22,6 +22,7 @@ import domain.Developer
 import javax.inject.Inject
 import model.APICategory
 import model.APICategory.APICategory
+import play.api.data.Form
 import play.api.i18n.MessagesApi
 import play.api.libs.crypto.CookieSigner
 import play.api.mvc.{Action, AnyContent}
@@ -53,7 +54,8 @@ class EmailPreferences @Inject()(val emailPreferenceSelectionsRepository: EmailP
 
 //  def taxRegimesSelectedAction: Action[AnyContent] = loggedInAction { implicit request =>
 //    val requestForm: Form[TaxRegimeEmailPreferencesForm] = TaxRegimeEmailPreferencesForm.form.bindFromRequest
-//    val
+//    val selectedTaxRegimes: Set[APICategory] = requestForm.get.selectedTaxRegimes.map(APICategory.withName).toSet
+//
 //    userEmailPreferences(request.developerSession.email)
 //  }
 

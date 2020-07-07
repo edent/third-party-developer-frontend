@@ -22,13 +22,13 @@ import javax.inject.{Inject, Singleton}
 import model.APICategory
 import model.APICategory.APICategory
 import org.joda.time.DateTime
+import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.indexes.Index
 import reactivemongo.api.indexes.IndexType.Ascending
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
-import repository.EmailPreferenceSelectionsRepository.EmailPreferenceSelections
-import repository.EmailPreferenceSelectionsRepository.{toModel, fromModel}
+import repository.EmailPreferenceSelectionsRepository.{EmailPreferenceSelections, TaxRegimeServices, fromModel, toModel}
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
@@ -66,6 +66,32 @@ class EmailPreferenceSelectionsRepository @Inject()(mongo: ReactiveMongoComponen
   def deleteByEmail(email: String): Future[Boolean] =
     remove("email" -> email)
       .map(_.ok)
+
+  def addSelectedTaxRegimes(email: String, regimesToAdd: Set[APICategory]): Future[UserEmailPreferences] = {
+    val newRegimeObjects = regimesToAdd.map(regime => Json.obj("taxRegime" -> regime.toString, "services" -> Json.arr()))
+
+    val updates =
+      Json.obj(
+        "$push" ->
+          Json.obj("servicesSelected" ->
+            Json.obj("$each" ->
+              Json.arr(newRegimeObjects.toSeq:_*))))
+
+    findAndUpdate(Json.obj("email" -> email), updates, fetchNewObject = true)
+      .map(_.result[EmailPreferenceSelections].head)
+      .map(toModel)
+  }
+
+  def removeSelectedTaxRegimes(email: String, regimesToRemove: Set[APICategory]): Future[UserEmailPreferences] = {
+    val update =
+      Json.obj(
+        "$pull" -> Json.obj("servicesSelected" -> Json.obj("taxRegime" -> Json.obj("$in" -> Json.arr(regimesToRemove.map(_.toString).mkString(","))))),
+        "$currentDate" -> Json.obj("lastUpdate" -> true))
+
+    findAndUpdate(Json.obj("email" -> email), update, fetchNewObject = true)
+      .map(_.result[EmailPreferenceSelections].head)
+      .map(toModel)
+  }
 }
 
 object EmailPreferenceSelectionsRepository {
@@ -85,6 +111,7 @@ object EmailPreferenceSelectionsRepository {
                                                            lastUpdate: DateTime)
 
   object EmailPreferenceSelections {
+    implicit val dateTimeFormat: Format[DateTime] = ReactiveMongoFormats.dateTimeFormats
     implicit val emailPreferenceSelectionsFormat: Format[EmailPreferenceSelections] =
       Format(Json.reads[EmailPreferenceSelections], Json.writes[EmailPreferenceSelections])
   }

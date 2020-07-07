@@ -16,7 +16,6 @@
 
 package controllers
 
-import domain.ApiSubscriptionFields.SubscriptionFieldValue
 import domain.{Application, Standard}
 import play.api.data.Form
 import play.api.data.Forms._
@@ -419,4 +418,11 @@ object ChangeIpWhitelistForm {
       ChangeIpWhitelistForm.unapply
     )
   )
+}
+
+final case class TaxRegimeEmailPreferencesForm(selectedTaxRegimes: List[String])
+
+object TaxRegimeEmailPreferencesForm {
+  val form: Form[TaxRegimeEmailPreferencesForm] =
+    Form(mapping("tax-regime" -> list(text))(TaxRegimeEmailPreferencesForm.apply)(TaxRegimeEmailPreferencesForm.unapply))
 }
